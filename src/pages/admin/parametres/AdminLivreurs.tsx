@@ -312,7 +312,7 @@ const AdminLivreurs = () => {
   const [selectedLog, setSelectedLog] = useState<typeof apiLogs[number] | null>(null);
   const [logFilter, setLogFilter] = useState("all");
   const [logSearch, setLogSearch] = useState("");
-  const [retention, setRetention] = useState({ enabled: false, days: 30 });
+  const [retention, setRetention] = useState({ enabled: false, hours: 72 });
   const filteredLogs = useMemo(() => apiLogs.filter((log) => {
     if (logFilter !== "all" && (logFilter === "webhook" ? log.event_type !== "webhook_status" : log.event_type === "webhook_status")) return false;
     const needle = logSearch.trim().toLowerCase();
@@ -385,7 +385,7 @@ const AdminLivreurs = () => {
     setSettings(byLivreur);
     setApiLogs(logs.data ?? []);
     const retentionValue = (retentionSetting.data?.value ?? {}) as Record<string, unknown>;
-    setRetention({ enabled: Boolean(retentionValue.enabled), days: Number(retentionValue.days) || 30 });
+    setRetention({ enabled: Boolean(retentionValue.enabled), hours: Number(retentionValue.hours ?? (Number(retentionValue.days) || 3) * 24) || 72 });
   };
   useEffect(() => { load(); }, []);
 
@@ -531,10 +531,10 @@ const AdminLivreurs = () => {
   };
 
   const saveRetention = async () => {
-    const days = Math.max(Number(retention.days) || 30, 1);
-    const { error } = await db.from("app_settings").upsert({ key: "api_logs_retention", value: { enabled: retention.enabled, days } }, { onConflict: "key" });
+    const hours = Math.max(Number(retention.hours) || 72, 1);
+    const { error } = await db.from("app_settings").upsert({ key: "api_logs_retention", value: { enabled: retention.enabled, hours } }, { onConflict: "key" });
     if (error) toast.error(error.message);
-    else { toast.success("Log cleanup settings saved"); setRetention({ enabled: retention.enabled, days }); }
+    else { toast.success("Log cleanup settings saved"); setRetention({ enabled: retention.enabled, hours }); }
   };
 
   const deleteLog = async (id: number) => {
