@@ -689,7 +689,7 @@ const AdminLivreurs = () => {
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold">Webhook logs & Driver API logs</h3>
-            <p className="text-sm text-muted-foreground">Showing latest {apiLogs.length} receptions, rejections, polling checks, and provider responses with full details. Cleanup retention is measured in days.</p>
+            <p className="text-sm text-muted-foreground">Showing latest {apiLogs.length} receptions, rejections, polling checks, and provider responses with full details. Cleanup retention is measured in hours.</p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Input className="h-9 w-64" placeholder="Search order, tracking, status..." value={logSearch} onChange={(e) => setLogSearch(e.target.value)} />
