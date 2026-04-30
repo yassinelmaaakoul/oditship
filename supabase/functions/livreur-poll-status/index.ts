@@ -304,7 +304,7 @@ Deno.serve(async (req) => {
         if (mappedStatus === order.status) {
           // Same status as current → no status update, no history insert.
           // Still capture driver info if it changed (driver may be assigned without a status change).
-          const driverErr = await updateDriverInfoOnly(admin, order, driverName, driverPhone);
+          const driverErr = await updateDriverInfoOnly(admin, order, driverName, driverPhone, extraOrderUpdates);
           await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "ignored", message: driverErr ? "Provider status unchanged; driver update failed" : "Provider status matches current order status — no update needed", details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, current_status: order.status, driver_name: driverName, driver_phone: driverPhone, rejection_reason: "status_unchanged", driver_update_error: driverErr?.message ?? null } });
           continue;
         }
