@@ -38,6 +38,7 @@ interface LivreurApiSettings {
   webhook_reported_date_field: string;
   webhook_scheduled_date_field: string;
   webhook_extra_fields_mapping: Record<string, string>;
+  webhook_order_fields_mapping: Record<string, string>;
   polling_enabled: boolean;
   polling_interval_minutes: number;
   polling_status_url: string | null;
@@ -49,6 +50,10 @@ interface LivreurApiSettings {
   polling_message_field: string;
   polling_reported_date_field: string;
   polling_scheduled_date_field: string;
+  polling_driver_name_field: string;
+  polling_driver_phone_field: string;
+  polling_extra_fields_mapping: Record<string, string>;
+  polling_order_fields_mapping: Record<string, string>;
   rate_limit_per_second: number;
   is_active: boolean;
 }
@@ -121,6 +126,7 @@ const defaultSettings = (livreurId: string): LivreurApiSettings => ({
   webhook_reported_date_field: "reportedDate",
   webhook_scheduled_date_field: "scheduledDate",
   webhook_extra_fields_mapping: {},
+  webhook_order_fields_mapping: {},
   polling_enabled: false,
   polling_interval_minutes: 15,
   polling_status_url: "",
@@ -132,6 +138,10 @@ const defaultSettings = (livreurId: string): LivreurApiSettings => ({
   polling_message_field: "message",
   polling_reported_date_field: "reportedDate",
   polling_scheduled_date_field: "scheduledDate",
+  polling_driver_name_field: "transport.currentDriverName",
+  polling_driver_phone_field: "transport.currentDriverPhone",
+  polling_extra_fields_mapping: {},
+  polling_order_fields_mapping: {},
   rate_limit_per_second: 5,
   is_active: true,
 });
@@ -399,6 +409,40 @@ const SmartMappingEditor = ({
   );
 };
 
+// Single field path picker: dropdown of detected/known paths + free-text fallback.
+const SmartFieldPath = ({
+  label, help, value, onChange, options, placeholder = "Body path",
+}: {
+  label: string; help?: string; value: string; onChange: (value: string) => void;
+  options: string[]; placeholder?: string;
+}) => {
+  const [mode, setMode] = useState<"select" | "custom" | undefined>(undefined);
+  const effectiveMode = mode ?? (value && !options.includes(value) ? "custom" : "select");
+  return (
+    <div>
+      <Label>{label}</Label>
+      {effectiveMode === "custom" ? (
+        <div className="flex gap-1">
+          <Input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+          <Button type="button" variant="ghost" size="sm" className="px-2" title="Use list" onClick={() => setMode("select")}>
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+        </div>
+      ) : (
+        <Select value={options.includes(value) ? value : ""} onValueChange={(v) => { if (v === "__custom__") setMode("custom"); else onChange(v); }}>
+          <SelectTrigger><SelectValue placeholder={value || placeholder} /></SelectTrigger>
+          <SelectContent className="max-h-72">
+            {options.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No suggestions yet</div>}
+            {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+            <SelectItem value="__custom__">✎ Custom value...</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+      {help && <FieldHelp>{help}</FieldHelp>}
+    </div>
+  );
+};
+
 const AuthConfigEditor = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
   const auth = safeObject(value);
   const update = (patch: Record<string, unknown>) => onChange(JSON.stringify({ ...auth, ...patch }, null, 2));
@@ -504,6 +548,7 @@ const AdminLivreurs = () => {
     webhook_reported_date_field: "reportedDate",
     webhook_scheduled_date_field: "scheduledDate",
     webhook_extra_fields_mapping: "{}",
+    webhook_order_fields_mapping: "{}",
     polling_enabled: false,
     polling_interval_minutes: 15,
     polling_status_url: "",
@@ -515,6 +560,10 @@ const AdminLivreurs = () => {
     polling_message_field: "message",
     polling_reported_date_field: "reportedDate",
     polling_scheduled_date_field: "scheduledDate",
+    polling_driver_name_field: "transport.currentDriverName",
+    polling_driver_phone_field: "transport.currentDriverPhone",
+    polling_extra_fields_mapping: "{}",
+    polling_order_fields_mapping: "{}",
     rate_limit_per_second: 5,
     is_active: true,
   });
@@ -604,6 +653,7 @@ const AdminLivreurs = () => {
       webhook_reported_date_field: activeSettings.webhook_reported_date_field || "reportedDate",
       webhook_scheduled_date_field: activeSettings.webhook_scheduled_date_field || "scheduledDate",
       webhook_extra_fields_mapping: formatJson(activeSettings.webhook_extra_fields_mapping),
+      webhook_order_fields_mapping: formatJson((activeSettings as any).webhook_order_fields_mapping ?? {}),
       polling_enabled: activeSettings.polling_enabled ?? false,
       polling_interval_minutes: activeSettings.polling_interval_minutes ?? 15,
       polling_status_url: activeSettings.polling_status_url ?? "",
@@ -615,6 +665,10 @@ const AdminLivreurs = () => {
       polling_message_field: activeSettings.polling_message_field || "message",
       polling_reported_date_field: activeSettings.polling_reported_date_field || "reportedDate",
       polling_scheduled_date_field: activeSettings.polling_scheduled_date_field || "scheduledDate",
+      polling_driver_name_field: (activeSettings as any).polling_driver_name_field || "transport.currentDriverName",
+      polling_driver_phone_field: (activeSettings as any).polling_driver_phone_field || "transport.currentDriverPhone",
+      polling_extra_fields_mapping: formatJson((activeSettings as any).polling_extra_fields_mapping ?? {}),
+      polling_order_fields_mapping: formatJson((activeSettings as any).polling_order_fields_mapping ?? {}),
       rate_limit_per_second: activeSettings.rate_limit_per_second ?? 5,
       is_active: activeSettings.is_active,
     });
@@ -686,6 +740,7 @@ const AdminLivreurs = () => {
         webhook_reported_date_field: settingsForm.webhook_reported_date_field.trim() || "reportedDate",
         webhook_scheduled_date_field: settingsForm.webhook_scheduled_date_field.trim() || "scheduledDate",
         webhook_extra_fields_mapping: parseJson("Webhook extra fields", settingsForm.webhook_extra_fields_mapping),
+        webhook_order_fields_mapping: parseJson("Webhook order fields", (settingsForm as any).webhook_order_fields_mapping),
         polling_enabled: settingsForm.polling_enabled,
         polling_interval_minutes: Number(settingsForm.polling_interval_minutes) || 15,
         polling_status_url: settingsForm.polling_status_url.trim() || null,
@@ -697,6 +752,10 @@ const AdminLivreurs = () => {
         polling_message_field: settingsForm.polling_message_field.trim() || "message",
         polling_reported_date_field: settingsForm.polling_reported_date_field.trim() || "reportedDate",
         polling_scheduled_date_field: settingsForm.polling_scheduled_date_field.trim() || "scheduledDate",
+        polling_driver_name_field: ((settingsForm as any).polling_driver_name_field || "").trim() || "transport.currentDriverName",
+        polling_driver_phone_field: ((settingsForm as any).polling_driver_phone_field || "").trim() || "transport.currentDriverPhone",
+        polling_extra_fields_mapping: parseJson("Polling extra fields", (settingsForm as any).polling_extra_fields_mapping),
+        polling_order_fields_mapping: parseJson("Polling order fields", (settingsForm as any).polling_order_fields_mapping),
         rate_limit_per_second: Number((settingsForm as any).rate_limit_per_second) || 5,
         is_active: settingsForm.is_active,
       };
@@ -977,15 +1036,16 @@ const AdminLivreurs = () => {
               <div><Label>Webhook URL</Label><Input readOnly value={editing ? `${functionsBaseUrl}/livreur-webhook/${editing.id}` : ""} /><FieldHelp>Give this URL to the provider with this driver's API token as a Bearer token.</FieldHelp></div>
               <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"><span>Enable webhook reception</span><Switch checked={settingsForm.webhook_enabled} onCheckedChange={(v) => setSettingsForm({ ...settingsForm, webhook_enabled: v })} /></label>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div><Label>Webhook status field</Label><Input value={settingsForm.webhook_status_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_status_field: e.target.value })} /><FieldHelp>Field name that contains the provider status in the webhook body.</FieldHelp></div>
-                <div><Label>Webhook tracking field</Label><Input value={settingsForm.webhook_tracking_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_tracking_field: e.target.value })} /><FieldHelp>Field name that contains the tracking number in the webhook body.</FieldHelp></div>
-                <div><Label>Webhook driver name field</Label><Input value={settingsForm.webhook_driver_name_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_driver_name_field: e.target.value })} /><FieldHelp>Path used to capture the driver name shown in order details.</FieldHelp></div>
-                <div><Label>Webhook driver phone field</Label><Input value={settingsForm.webhook_driver_phone_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_driver_phone_field: e.target.value })} /><FieldHelp>Path used to capture the driver phone shown in order details.</FieldHelp></div>
-                <div><Label>Webhook note field</Label><Input value={settingsForm.webhook_note_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_note_field: e.target.value })} /><FieldHelp>Path used to capture the delivery note.</FieldHelp></div>
-                <div><Label>Webhook date Reporté field</Label><Input value={settingsForm.webhook_reported_date_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_reported_date_field: e.target.value })} /><FieldHelp>Path used to capture postponed delivery date.</FieldHelp></div>
-                <div><Label>Webhook date Programmé field</Label><Input value={settingsForm.webhook_scheduled_date_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_scheduled_date_field: e.target.value })} /><FieldHelp>Path used to capture scheduled delivery date.</FieldHelp></div>
+                <SmartFieldPath label="Webhook status field" help="Field name that contains the provider status in the webhook body." value={settingsForm.webhook_status_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_status_field: v })} options={detectedProviderFields.webhook} />
+                <SmartFieldPath label="Webhook tracking field" help="Field name that contains the tracking number in the webhook body." value={settingsForm.webhook_tracking_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_tracking_field: v })} options={detectedProviderFields.webhook} />
+                <SmartFieldPath label="Webhook driver name field" help="Path used to capture the driver name shown in order details." value={settingsForm.webhook_driver_name_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_driver_name_field: v })} options={detectedProviderFields.webhook} />
+                <SmartFieldPath label="Webhook driver phone field" help="Path used to capture the driver phone shown in order details." value={settingsForm.webhook_driver_phone_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_driver_phone_field: v })} options={detectedProviderFields.webhook} />
+                <SmartFieldPath label="Webhook note field" help="Path used to capture the delivery note." value={settingsForm.webhook_note_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_note_field: v })} options={detectedProviderFields.webhook} />
+                <SmartFieldPath label="Webhook date Reporté field" help="Path used to capture postponed delivery date." value={settingsForm.webhook_reported_date_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_reported_date_field: v })} options={detectedProviderFields.webhook} />
+                <SmartFieldPath label="Webhook date Programmé field" help="Path used to capture scheduled delivery date." value={settingsForm.webhook_scheduled_date_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_scheduled_date_field: v })} options={detectedProviderFields.webhook} />
               </div>
               <SmartMappingEditor label="Webhook extra fields" help="Capture extra info from incoming webhook bodies. Left = a key you choose (free text). Right = the webhook path, picked from fields detected in this driver's recent webhook receptions." value={settingsForm.webhook_extra_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, webhook_extra_fields_mapping: value })} keyOptions={[]} valueOptions={detectedProviderFields.webhook} keyPlaceholder="Saved key" valuePlaceholder="Webhook body path" />
+              <SmartMappingEditor label="Webhook → Order columns mapping" help="Capture any value from the webhook body and write it directly to an order column. Left = order field (driver_name, comment, status_note, postponed_date, scheduled_date, etc.). Right = webhook body path." value={(settingsForm as any).webhook_order_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, webhook_order_fields_mapping: value } as any)} keyOptions={SYSTEM_ORDER_FIELDS} valueOptions={detectedProviderFields.webhook} keyPlaceholder="Order field" valuePlaceholder="Webhook body path" />
               <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"><span>Webhook updates current status</span><Switch checked={settingsForm.webhook_updates_current_status} onCheckedChange={(v) => setSettingsForm({ ...settingsForm, webhook_updates_current_status: v })} /></label>
               <FieldHelp>When API and webhook are both enabled, webhook notifications are saved in logs first and polling should fetch the complete current status. When only webhook is enabled, this switch lets the webhook body update the current order status directly.</FieldHelp>
               <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"><span>Settings enabled</span><Switch checked={settingsForm.is_active} onCheckedChange={(v) => setSettingsForm({ ...settingsForm, is_active: v })} /></label>
@@ -1002,15 +1062,19 @@ const AdminLivreurs = () => {
               {String(settingsForm.polling_status_method || "GET").toUpperCase() !== "GET" ? (
                 <SmartMappingEditor label="Polling request body mapping" help="Used only when polling method is POST/PUT/PATCH. Left = body key sent to provider. Right = order field used as the value. For GET requests this is ignored — provider data is captured from the response using the field paths below." value={settingsForm.polling_status_payload_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, polling_status_payload_mapping: value })} keyOptions={detectedProviderFields.polling} valueOptions={SYSTEM_ORDER_FIELDS} keyPlaceholder="Body key" valuePlaceholder="Order field" />
               ) : (
-                <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">Polling method is GET — no request body is sent. Provider data (status, driver, dates) is captured from the response using the field paths below and the driver name/phone fields configured in the Webhook section.</div>
+                <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">Polling method is GET — no request body is sent. Provider data (status, driver, dates) is captured from the response using the field paths below.</div>
               )}
               <div className="grid gap-3 sm:grid-cols-3">
-                <div><Label>Tracking field</Label><Input value={settingsForm.polling_tracking_field} onChange={(e) => setSettingsForm({ ...settingsForm, polling_tracking_field: e.target.value })} /></div>
-                <div><Label>Status field</Label><Input value={settingsForm.polling_status_field} onChange={(e) => setSettingsForm({ ...settingsForm, polling_status_field: e.target.value })} /></div>
-                <div><Label>Message field</Label><Input value={settingsForm.polling_message_field} onChange={(e) => setSettingsForm({ ...settingsForm, polling_message_field: e.target.value })} /></div>
-                <div><Label>Date Reporté field</Label><Input value={settingsForm.polling_reported_date_field} onChange={(e) => setSettingsForm({ ...settingsForm, polling_reported_date_field: e.target.value })} /></div>
-                <div><Label>Date Programmé field</Label><Input value={settingsForm.polling_scheduled_date_field} onChange={(e) => setSettingsForm({ ...settingsForm, polling_scheduled_date_field: e.target.value })} /></div>
+                <SmartFieldPath label="Tracking field" help="Path to tracking number in the polling response." value={settingsForm.polling_tracking_field} onChange={(v) => setSettingsForm({ ...settingsForm, polling_tracking_field: v })} options={detectedProviderFields.polling} />
+                <SmartFieldPath label="Status field" help="Path to provider status in the polling response." value={settingsForm.polling_status_field} onChange={(v) => setSettingsForm({ ...settingsForm, polling_status_field: v })} options={detectedProviderFields.polling} />
+                <SmartFieldPath label="Message field" help="Path to delivery note/message in the polling response." value={settingsForm.polling_message_field} onChange={(v) => setSettingsForm({ ...settingsForm, polling_message_field: v })} options={detectedProviderFields.polling} />
+                <SmartFieldPath label="Date Reporté field" help="Path to postponed delivery date in the polling response." value={settingsForm.polling_reported_date_field} onChange={(v) => setSettingsForm({ ...settingsForm, polling_reported_date_field: v })} options={detectedProviderFields.polling} />
+                <SmartFieldPath label="Date Programmé field" help="Path to scheduled delivery date in the polling response." value={settingsForm.polling_scheduled_date_field} onChange={(v) => setSettingsForm({ ...settingsForm, polling_scheduled_date_field: v })} options={detectedProviderFields.polling} />
+                <SmartFieldPath label="Driver name field" help="Path to driver name in the polling response." value={(settingsForm as any).polling_driver_name_field || ""} onChange={(v) => setSettingsForm({ ...settingsForm, polling_driver_name_field: v } as any)} options={detectedProviderFields.polling} />
+                <SmartFieldPath label="Driver phone field" help="Path to driver phone in the polling response." value={(settingsForm as any).polling_driver_phone_field || ""} onChange={(v) => setSettingsForm({ ...settingsForm, polling_driver_phone_field: v } as any)} options={detectedProviderFields.polling} />
               </div>
+              <SmartMappingEditor label="Polling extra fields" help="Capture extra info from polling responses for logs and debugging. Left = a key you choose. Right = the response path." value={(settingsForm as any).polling_extra_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, polling_extra_fields_mapping: value } as any)} keyOptions={[]} valueOptions={detectedProviderFields.polling} keyPlaceholder="Saved key" valuePlaceholder="Response body path" />
+              <SmartMappingEditor label="Polling → Order columns mapping" help="Capture any value from the polling response and write it directly to an order column. Left = order field. Right = response body path." value={(settingsForm as any).polling_order_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, polling_order_fields_mapping: value } as any)} keyOptions={SYSTEM_ORDER_FIELDS} valueOptions={detectedProviderFields.polling} keyPlaceholder="Order field" valuePlaceholder="Response body path" />
               <KeyValueEditor label="Status mapping (Polling)" help="Used only for the scheduled polling job. Left = provider status returned in the polling response, right = internal status used in this app." value={settingsForm.polling_status_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, polling_status_mapping: value })} keyPlaceholder="Provider status" valuePlaceholder="Internal status" />
             </Card>
           </div>

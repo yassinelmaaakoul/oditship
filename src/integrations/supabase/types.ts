@@ -291,10 +291,14 @@ export type Database = {
           created_at: string
           is_active: boolean
           livreur_id: string
+          polling_driver_name_field: string
+          polling_driver_phone_field: string
           polling_enabled: boolean
+          polling_extra_fields_mapping: Json
           polling_interval_minutes: number
           polling_last_run_at: string | null
           polling_message_field: string
+          polling_order_fields_mapping: Json
           polling_reported_date_field: string
           polling_scheduled_date_field: string
           polling_status_field: string
@@ -313,6 +317,7 @@ export type Database = {
           webhook_enabled: boolean
           webhook_extra_fields_mapping: Json
           webhook_note_field: string
+          webhook_order_fields_mapping: Json
           webhook_reported_date_field: string
           webhook_scheduled_date_field: string
           webhook_status_field: string
@@ -329,10 +334,14 @@ export type Database = {
           created_at?: string
           is_active?: boolean
           livreur_id: string
+          polling_driver_name_field?: string
+          polling_driver_phone_field?: string
           polling_enabled?: boolean
+          polling_extra_fields_mapping?: Json
           polling_interval_minutes?: number
           polling_last_run_at?: string | null
           polling_message_field?: string
+          polling_order_fields_mapping?: Json
           polling_reported_date_field?: string
           polling_scheduled_date_field?: string
           polling_status_field?: string
@@ -351,6 +360,7 @@ export type Database = {
           webhook_enabled?: boolean
           webhook_extra_fields_mapping?: Json
           webhook_note_field?: string
+          webhook_order_fields_mapping?: Json
           webhook_reported_date_field?: string
           webhook_scheduled_date_field?: string
           webhook_status_field?: string
@@ -367,10 +377,14 @@ export type Database = {
           created_at?: string
           is_active?: boolean
           livreur_id?: string
+          polling_driver_name_field?: string
+          polling_driver_phone_field?: string
           polling_enabled?: boolean
+          polling_extra_fields_mapping?: Json
           polling_interval_minutes?: number
           polling_last_run_at?: string | null
           polling_message_field?: string
+          polling_order_fields_mapping?: Json
           polling_reported_date_field?: string
           polling_scheduled_date_field?: string
           polling_status_field?: string
@@ -389,6 +403,7 @@ export type Database = {
           webhook_enabled?: boolean
           webhook_extra_fields_mapping?: Json
           webhook_note_field?: string
+          webhook_order_fields_mapping?: Json
           webhook_reported_date_field?: string
           webhook_scheduled_date_field?: string
           webhook_status_field?: string

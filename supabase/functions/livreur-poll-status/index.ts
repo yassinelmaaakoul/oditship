@@ -139,6 +139,22 @@ async function listPollingOrders(admin: any, livreurId: string) {
   return data ?? [];
 }
 
+// Whitelist of order columns admins can target via order_fields_mapping.
+const ALLOWED_ORDER_COLUMNS = new Set([
+  "status_note", "return_note", "scheduled_date", "postponed_date",
+  "driver_name", "driver_phone", "comment", "delivered_at",
+  "external_tracking_number", "tracking_number", "barcode", "qr_code",
+]);
+
+function pickAllowedExtras(extras: Record<string, unknown> | undefined | null) {
+  const out: Record<string, unknown> = {};
+  if (!extras) return out;
+  for (const [k, v] of Object.entries(extras)) {
+    if (ALLOWED_ORDER_COLUMNS.has(k) && v !== undefined && v !== null && String(v).trim() !== "") out[k] = v;
+  }
+  return out;
+}
+
 async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatus: string, livreurId: string, meta: Record<string, unknown>) {
   const updatePayload: Record<string, unknown> = {
     status: mappedStatus,
@@ -152,6 +168,7 @@ async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatu
   if (meta.driver_phone !== undefined && meta.driver_phone !== null && String(meta.driver_phone).trim() !== "") {
     updatePayload.driver_phone = String(meta.driver_phone);
   }
+  Object.assign(updatePayload, pickAllowedExtras(meta.extra_order_updates as Record<string, unknown> | undefined));
   const { error: updateError } = await admin.from("orders").update(updatePayload).eq("id", order.id);
   if (updateError) return updateError;
   const { error: historyError } = await admin.from("order_status_history").insert({
@@ -167,12 +184,16 @@ async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatu
   return historyError;
 }
 
-async function updateDriverInfoOnly(admin: any, order: any, driverName: unknown, driverPhone: unknown) {
+async function updateDriverInfoOnly(admin: any, order: any, driverName: unknown, driverPhone: unknown, extraOrderUpdates?: Record<string, unknown>) {
   const patch: Record<string, unknown> = {};
   const newName = driverName === undefined || driverName === null ? "" : String(driverName).trim();
   const newPhone = driverPhone === undefined || driverPhone === null ? "" : String(driverPhone).trim();
   if (newName && newName !== (order.driver_name ?? "")) patch.driver_name = newName;
   if (newPhone && newPhone !== (order.driver_phone ?? "")) patch.driver_phone = newPhone;
+  const extras = pickAllowedExtras(extraOrderUpdates);
+  for (const [k, v] of Object.entries(extras)) {
+    if (String(v) !== String(order[k] ?? "")) patch[k] = v;
+  }
   if (Object.keys(patch).length === 0) return null;
   const { error } = await admin.from("orders").update(patch).eq("id", order.id);
   return error;
@@ -267,17 +288,27 @@ Deno.serve(async (req) => {
         const message = getPath(body, settings.polling_message_field) ?? null;
         const reportedDate = parseDateValue(getPath(body, settings.polling_reported_date_field || "reportedDate"));
         const scheduledDate = parseDateValue(getPath(body, settings.polling_scheduled_date_field || "scheduledDate"));
-        const driverName = getPath(body, settings.webhook_driver_name_field || "transport.currentDriverName");
-        const driverPhone = getPath(body, settings.webhook_driver_phone_field || "transport.currentDriverPhone");
-        await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "received", message: `Provider status received: ${mappedStatus}`, details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, previous_status: order.status, note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone } });
+        const driverName = getPath(body, settings.polling_driver_name_field || settings.webhook_driver_name_field || "transport.currentDriverName");
+        const driverPhone = getPath(body, settings.polling_driver_phone_field || settings.webhook_driver_phone_field || "transport.currentDriverPhone");
+        // Capture extra order columns from response if admin configured a polling_order_fields_mapping.
+        const extraOrderUpdates: Record<string, unknown> = {};
+        const orderFieldsMapping = settings.polling_order_fields_mapping ?? {};
+        for (const [orderField, responsePath] of Object.entries(orderFieldsMapping)) {
+          if (!orderField || !responsePath) continue;
+          const captured = getPath(body, String(responsePath));
+          if (captured !== undefined && captured !== null && String(captured).trim() !== "") {
+            extraOrderUpdates[String(orderField)] = captured;
+          }
+        }
+        await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "received", message: `Provider status received: ${mappedStatus}`, details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, previous_status: order.status, note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates } });
         if (mappedStatus === order.status) {
           // Same status as current → no status update, no history insert.
           // Still capture driver info if it changed (driver may be assigned without a status change).
-          const driverErr = await updateDriverInfoOnly(admin, order, driverName, driverPhone);
+          const driverErr = await updateDriverInfoOnly(admin, order, driverName, driverPhone, extraOrderUpdates);
           await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "ignored", message: driverErr ? "Provider status unchanged; driver update failed" : "Provider status matches current order status — no update needed", details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, current_status: order.status, driver_name: driverName, driver_phone: driverPhone, rejection_reason: "status_unchanged", driver_update_error: driverErr?.message ?? null } });
           continue;
         }
-        const updateError = await updateOrderStatusFromProvider(admin, order, mappedStatus, settings.livreur_id, { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone });
+        const updateError = await updateOrderStatusFromProvider(admin, order, mappedStatus, settings.livreur_id, { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates });
         if (updateError) {
           await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "failed", message: "Unable to update order status", details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, error: updateError.message } });
           continue;
