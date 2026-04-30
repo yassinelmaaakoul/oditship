@@ -39,6 +39,7 @@ interface LivreurApiSettings {
   webhook_scheduled_date_field: string;
   webhook_extra_fields_mapping: Record<string, string>;
   webhook_order_fields_mapping: Record<string, string>;
+  webhook_actor_field: string;
   polling_enabled: boolean;
   polling_interval_minutes: number;
   polling_status_url: string | null;
