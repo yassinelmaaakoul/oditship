@@ -235,18 +235,14 @@ Deno.serve(async (req) => {
     (rows ?? []).forEach((p: any) => { actors[p.id] = p; });
   }
 
-  const packageDetails: any = null;
   const packageError: string | null = null;
   const tracking = order.external_tracking_number || order.tracking_number;
 
-  const statusMapping = settings?.status_mapping ?? {};
-  const apiHistory = Array.isArray(packageDetails?.history) ? packageDetails.history : [];
-  const mappedApiStatuses = new Set(apiHistory.map((h: any) => mapProviderStatus(h.status, statusMapping)).filter(Boolean));
   const currentOrder = order;
   const visibleDbHistory = removeSystemDuplicates(history ?? []);
   const seenTimeline = new Set<string>();
   const mergedHistory = [
-    ...visibleDbHistory.filter((h: any) => !isInternalConfirmed(h.new_status) && !isInternalConfirmed(h.old_status) && !(h.changed_by === order.assigned_livreur_id && mappedApiStatuses.has(h.new_status))).map((h: any) => ({
+    ...visibleDbHistory.filter((h: any) => !isInternalConfirmed(h.new_status) && !isInternalConfirmed(h.old_status)).map((h: any) => ({
       source: h.changed_by === order.assigned_livreur_id ? "provider" : "odit",
       status: h.new_status,
       old_status: h.old_status,
@@ -257,19 +253,6 @@ Deno.serve(async (req) => {
       changed_at: h.changed_at,
       actor: h.changed_by && h.changed_by !== order.assigned_livreur_id ? actors[h.changed_by] ?? null : null,
     })),
-    ...apiHistory.filter((h: any) => mapProviderStatus(h.status, statusMapping) && !isApiCreatedConfirmed(mapProviderStatus(h.status, statusMapping), h.msg)).map((h: any) => {
-      const meta = providerMeta(h, settings);
-      return {
-        source: "provider",
-        status: mapProviderStatus(h.status, statusMapping),
-        message: meta.note,
-        note: meta.note,
-        reported_date: meta.reported_date,
-        scheduled_date: meta.scheduled_date,
-        changed_at: h.updateAt,
-        actor: h.user ? { username: h.user } : null,
-      };
-    }),
   ]
     .sort((a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime())
     .filter((item: any) => {
@@ -288,7 +271,7 @@ Deno.serve(async (req) => {
       phone: latestWebhookLog?.details?.driver_phone || null,
     },
     support: null,
-    destination: packageDetails?.destination ?? null,
+    destination: null,
     history: mergedHistory,
     package_error: packageError,
   }), {
