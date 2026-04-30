@@ -291,6 +291,7 @@ export type Database = {
           created_at: string
           is_active: boolean
           livreur_id: string
+          polling_actor_field: string
           polling_driver_name_field: string
           polling_driver_phone_field: string
           polling_enabled: boolean
@@ -312,6 +313,7 @@ export type Database = {
           status_mapping: Json
           updated_at: string
           validation_rules: Json
+          webhook_actor_field: string
           webhook_driver_name_field: string
           webhook_driver_phone_field: string
           webhook_enabled: boolean
@@ -334,6 +336,7 @@ export type Database = {
           created_at?: string
           is_active?: boolean
           livreur_id: string
+          polling_actor_field?: string
           polling_driver_name_field?: string
           polling_driver_phone_field?: string
           polling_enabled?: boolean
@@ -355,6 +358,7 @@ export type Database = {
           status_mapping?: Json
           updated_at?: string
           validation_rules?: Json
+          webhook_actor_field?: string
           webhook_driver_name_field?: string
           webhook_driver_phone_field?: string
           webhook_enabled?: boolean
@@ -377,6 +381,7 @@ export type Database = {
           created_at?: string
           is_active?: boolean
           livreur_id?: string
+          polling_actor_field?: string
           polling_driver_name_field?: string
           polling_driver_phone_field?: string
           polling_enabled?: boolean
@@ -398,6 +403,7 @@ export type Database = {
           status_mapping?: Json
           updated_at?: string
           validation_rules?: Json
+          webhook_actor_field?: string
           webhook_driver_name_field?: string
           webhook_driver_phone_field?: string
           webhook_enabled?: boolean
@@ -414,6 +420,7 @@ export type Database = {
       }
       order_status_history: {
         Row: {
+          actor_label: string | null
           changed_at: string
           changed_by: string | null
           id: number
@@ -426,6 +433,7 @@ export type Database = {
           scheduled_date: string | null
         }
         Insert: {
+          actor_label?: string | null
           changed_at?: string
           changed_by?: string | null
           id?: number
@@ -438,6 +446,7 @@ export type Database = {
           scheduled_date?: string | null
         }
         Update: {
+          actor_label?: string | null
           changed_at?: string
           changed_by?: string | null
           id?: number

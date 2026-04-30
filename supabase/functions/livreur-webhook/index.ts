@@ -17,6 +17,37 @@ function getPath(obj: any, path?: string | null) {
   return path.split(".").reduce((acc: any, key) => acc?.[key], obj);
 }
 
+// Resolve a "smart" path used for the activity actor:
+//   - "lastmsg"            → last entry's `msg` from any array named history/timeline/events/logs
+//   - "history.last.msg"   → last entry's `msg` from `history` array
+//   - any other dotted path → standard getPath()
+function resolveSmartPath(body: any, path?: string | null) {
+  if (!path) return undefined;
+  const trimmed = String(path).trim();
+  if (!trimmed) return undefined;
+  const findHistoryArray = (obj: any): any[] | null => {
+    if (!obj || typeof obj !== "object") return null;
+    for (const key of ["history", "timeline", "events", "logs", "statusHistory"]) {
+      if (Array.isArray(obj[key]) && obj[key].length > 0) return obj[key];
+    }
+    return null;
+  };
+  if (trimmed.toLowerCase() === "lastmsg") {
+    const arr = findHistoryArray(body);
+    if (!arr) return undefined;
+    const last = arr[arr.length - 1];
+    return last?.msg ?? last?.message ?? last?.note ?? last?.user ?? null;
+  }
+  const lastMatch = trimmed.match(/^([a-zA-Z0-9_]+)\.last\.(.+)$/);
+  if (lastMatch) {
+    const [, arrName, rest] = lastMatch;
+    const arr = (body && typeof body === "object") ? (body as any)[arrName] : null;
+    if (!Array.isArray(arr) || arr.length === 0) return undefined;
+    return getPath(arr[arr.length - 1], rest);
+  }
+  return getPath(body, trimmed);
+}
+
 function buildCapturedFields(payload: any, mapping: Record<string, string>) {
   return Object.fromEntries(
     Object.entries(mapping ?? {})
@@ -50,6 +81,7 @@ function webhookEndpointInfo(req: Request, livreurId: string | null, settings: a
     scheduled_date_field: settings?.webhook_scheduled_date_field || "scheduledDate",
     driver_name_field: settings?.webhook_driver_name_field || "transport.currentDriverName",
     driver_phone_field: settings?.webhook_driver_phone_field || "transport.currentDriverPhone",
+    actor_field: settings?.webhook_actor_field || "lastmsg",
     extra_fields_mapping: settings?.webhook_extra_fields_mapping ?? {},
     livreur_id: livreurId,
   };
@@ -187,6 +219,7 @@ async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatu
     provider_note: meta.note ?? null,
     reported_date: meta.reported_date ?? null,
     scheduled_date: meta.scheduled_date ?? null,
+    actor_label: meta.actor_label ?? null,
   });
   return historyError;
 }
@@ -240,6 +273,8 @@ Deno.serve(async (req) => {
   const scheduledDate = parseDateValue(getPath(payload, settings?.webhook_scheduled_date_field || "scheduledDate"));
   const driverName = getPath(payload, settings?.webhook_driver_name_field || "transport.currentDriverName") ?? null;
   const driverPhone = getPath(payload, settings?.webhook_driver_phone_field || "transport.currentDriverPhone") ?? null;
+  const actorLabelRaw = resolveSmartPath(payload, settings?.webhook_actor_field || "lastmsg");
+  const actorLabel = actorLabelRaw === undefined || actorLabelRaw === null || String(actorLabelRaw).trim() === "" ? null : String(actorLabelRaw);
   // Capture admin-configured extra order column updates from the webhook body.
   const extraOrderUpdates: Record<string, unknown> = {};
   const orderFieldsMapping = settings?.webhook_order_fields_mapping ?? {};
@@ -250,7 +285,7 @@ Deno.serve(async (req) => {
       extraOrderUpdates[String(orderField)] = captured;
     }
   }
-  const meta = { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates };
+  const meta = { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates, actor_label: actorLabel };
   const capturedFields = buildCapturedFields(payload, settings?.webhook_extra_fields_mapping ?? {});
 
   if (!tracking || !String(rawStatus ?? "").trim()) {
@@ -317,6 +352,7 @@ Deno.serve(async (req) => {
       provider_note: message,
       reported_date: reportedDate,
       scheduled_date: scheduledDate,
+      actor_label: actorLabel,
     });
     if (historyError) {
       await logApi(admin, { order_id: order.id, livreur_id: livreurId, event_type: "webhook_status", status: "failed", message: "Unable to record status history", details: webhookExchangeDetails(req, livreurId, settings, payload, 500, { error: "Unable to record status history" }, { tracking, raw_status: rawStatus, mapped_status: mappedStatus, error: historyError.message }) });

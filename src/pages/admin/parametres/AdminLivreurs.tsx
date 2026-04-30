@@ -39,6 +39,7 @@ interface LivreurApiSettings {
   webhook_scheduled_date_field: string;
   webhook_extra_fields_mapping: Record<string, string>;
   webhook_order_fields_mapping: Record<string, string>;
+  webhook_actor_field: string;
   polling_enabled: boolean;
   polling_interval_minutes: number;
   polling_status_url: string | null;
@@ -54,6 +55,7 @@ interface LivreurApiSettings {
   polling_driver_phone_field: string;
   polling_extra_fields_mapping: Record<string, string>;
   polling_order_fields_mapping: Record<string, string>;
+  polling_actor_field: string;
   rate_limit_per_second: number;
   is_active: boolean;
 }
@@ -127,6 +129,7 @@ const defaultSettings = (livreurId: string): LivreurApiSettings => ({
   webhook_scheduled_date_field: "scheduledDate",
   webhook_extra_fields_mapping: {},
   webhook_order_fields_mapping: {},
+  webhook_actor_field: "lastmsg",
   polling_enabled: false,
   polling_interval_minutes: 15,
   polling_status_url: "",
@@ -142,6 +145,7 @@ const defaultSettings = (livreurId: string): LivreurApiSettings => ({
   polling_driver_phone_field: "transport.currentDriverPhone",
   polling_extra_fields_mapping: {},
   polling_order_fields_mapping: {},
+  polling_actor_field: "lastmsg",
   rate_limit_per_second: 5,
   is_active: true,
 });
@@ -549,6 +553,7 @@ const AdminLivreurs = () => {
     webhook_scheduled_date_field: "scheduledDate",
     webhook_extra_fields_mapping: "{}",
     webhook_order_fields_mapping: "{}",
+    webhook_actor_field: "lastmsg",
     polling_enabled: false,
     polling_interval_minutes: 15,
     polling_status_url: "",
@@ -564,6 +569,7 @@ const AdminLivreurs = () => {
     polling_driver_phone_field: "transport.currentDriverPhone",
     polling_extra_fields_mapping: "{}",
     polling_order_fields_mapping: "{}",
+    polling_actor_field: "lastmsg",
     rate_limit_per_second: 5,
     is_active: true,
   });
@@ -654,6 +660,7 @@ const AdminLivreurs = () => {
       webhook_scheduled_date_field: activeSettings.webhook_scheduled_date_field || "scheduledDate",
       webhook_extra_fields_mapping: formatJson(activeSettings.webhook_extra_fields_mapping),
       webhook_order_fields_mapping: formatJson((activeSettings as any).webhook_order_fields_mapping ?? {}),
+      webhook_actor_field: (activeSettings as any).webhook_actor_field || "lastmsg",
       polling_enabled: activeSettings.polling_enabled ?? false,
       polling_interval_minutes: activeSettings.polling_interval_minutes ?? 15,
       polling_status_url: activeSettings.polling_status_url ?? "",
@@ -669,6 +676,7 @@ const AdminLivreurs = () => {
       polling_driver_phone_field: (activeSettings as any).polling_driver_phone_field || "transport.currentDriverPhone",
       polling_extra_fields_mapping: formatJson((activeSettings as any).polling_extra_fields_mapping ?? {}),
       polling_order_fields_mapping: formatJson((activeSettings as any).polling_order_fields_mapping ?? {}),
+      polling_actor_field: (activeSettings as any).polling_actor_field || "lastmsg",
       rate_limit_per_second: activeSettings.rate_limit_per_second ?? 5,
       is_active: activeSettings.is_active,
     });
@@ -741,6 +749,7 @@ const AdminLivreurs = () => {
         webhook_scheduled_date_field: settingsForm.webhook_scheduled_date_field.trim() || "scheduledDate",
         webhook_extra_fields_mapping: parseJson("Webhook extra fields", settingsForm.webhook_extra_fields_mapping),
         webhook_order_fields_mapping: parseJson("Webhook order fields", (settingsForm as any).webhook_order_fields_mapping),
+        webhook_actor_field: ((settingsForm as any).webhook_actor_field || "").trim() || "lastmsg",
         polling_enabled: settingsForm.polling_enabled,
         polling_interval_minutes: Number(settingsForm.polling_interval_minutes) || 15,
         polling_status_url: settingsForm.polling_status_url.trim() || null,
@@ -756,6 +765,7 @@ const AdminLivreurs = () => {
         polling_driver_phone_field: ((settingsForm as any).polling_driver_phone_field || "").trim() || "transport.currentDriverPhone",
         polling_extra_fields_mapping: parseJson("Polling extra fields", (settingsForm as any).polling_extra_fields_mapping),
         polling_order_fields_mapping: parseJson("Polling order fields", (settingsForm as any).polling_order_fields_mapping),
+        polling_actor_field: ((settingsForm as any).polling_actor_field || "").trim() || "lastmsg",
         rate_limit_per_second: Number((settingsForm as any).rate_limit_per_second) || 5,
         is_active: settingsForm.is_active,
       };
@@ -1043,6 +1053,7 @@ const AdminLivreurs = () => {
                 <SmartFieldPath label="Webhook note field" help="Path used to capture the delivery note." value={settingsForm.webhook_note_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_note_field: v })} options={detectedProviderFields.webhook} />
                 <SmartFieldPath label="Webhook date Reporté field" help="Path used to capture postponed delivery date." value={settingsForm.webhook_reported_date_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_reported_date_field: v })} options={detectedProviderFields.webhook} />
                 <SmartFieldPath label="Webhook date Programmé field" help="Path used to capture scheduled delivery date." value={settingsForm.webhook_scheduled_date_field} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_scheduled_date_field: v })} options={detectedProviderFields.webhook} />
+                <SmartFieldPath label="Webhook activity actor field" help="Path used to capture the actor displayed in the activity timeline. Use 'lastmsg' to take the last entry's message from a history array, or 'history.last.user' for the user of the last entry, or any custom path." value={(settingsForm as any).webhook_actor_field || "lastmsg"} onChange={(v) => setSettingsForm({ ...settingsForm, webhook_actor_field: v } as any)} options={["lastmsg", "history.last.msg", "history.last.user", ...detectedProviderFields.webhook]} />
               </div>
               <SmartMappingEditor label="Webhook extra fields" help="Capture extra info from incoming webhook bodies. Left = a key you choose (free text). Right = the webhook path, picked from fields detected in this driver's recent webhook receptions." value={settingsForm.webhook_extra_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, webhook_extra_fields_mapping: value })} keyOptions={[]} valueOptions={detectedProviderFields.webhook} keyPlaceholder="Saved key" valuePlaceholder="Webhook body path" />
               <SmartMappingEditor label="Webhook → Order columns mapping" help="Capture any value from the webhook body and write it directly to an order column. Left = order field (driver_name, comment, status_note, postponed_date, scheduled_date, etc.). Right = webhook body path." value={(settingsForm as any).webhook_order_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, webhook_order_fields_mapping: value } as any)} keyOptions={SYSTEM_ORDER_FIELDS} valueOptions={detectedProviderFields.webhook} keyPlaceholder="Order field" valuePlaceholder="Webhook body path" />
@@ -1072,6 +1083,7 @@ const AdminLivreurs = () => {
                 <SmartFieldPath label="Date Programmé field" help="Path to scheduled delivery date in the polling response." value={settingsForm.polling_scheduled_date_field} onChange={(v) => setSettingsForm({ ...settingsForm, polling_scheduled_date_field: v })} options={detectedProviderFields.polling} />
                 <SmartFieldPath label="Driver name field" help="Path to driver name in the polling response." value={(settingsForm as any).polling_driver_name_field || ""} onChange={(v) => setSettingsForm({ ...settingsForm, polling_driver_name_field: v } as any)} options={detectedProviderFields.polling} />
                 <SmartFieldPath label="Driver phone field" help="Path to driver phone in the polling response." value={(settingsForm as any).polling_driver_phone_field || ""} onChange={(v) => setSettingsForm({ ...settingsForm, polling_driver_phone_field: v } as any)} options={detectedProviderFields.polling} />
+                <SmartFieldPath label="Activity actor field" help="Path used to fill the actor in the activity timeline. Use 'lastmsg' to take the last entry's message from a history array (e.g. Olivraison), 'history.last.user' for the user of the last entry, or any custom path." value={(settingsForm as any).polling_actor_field || "lastmsg"} onChange={(v) => setSettingsForm({ ...settingsForm, polling_actor_field: v } as any)} options={["lastmsg", "history.last.msg", "history.last.user", ...detectedProviderFields.polling]} />
               </div>
               <SmartMappingEditor label="Polling extra fields" help="Capture extra info from polling responses for logs and debugging. Left = a key you choose. Right = the response path." value={(settingsForm as any).polling_extra_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, polling_extra_fields_mapping: value } as any)} keyOptions={[]} valueOptions={detectedProviderFields.polling} keyPlaceholder="Saved key" valuePlaceholder="Response body path" />
               <SmartMappingEditor label="Polling → Order columns mapping" help="Capture any value from the polling response and write it directly to an order column. Left = order field. Right = response body path." value={(settingsForm as any).polling_order_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, polling_order_fields_mapping: value } as any)} keyOptions={SYSTEM_ORDER_FIELDS} valueOptions={detectedProviderFields.polling} keyPlaceholder="Order field" valuePlaceholder="Response body path" />

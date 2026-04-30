@@ -17,6 +17,37 @@ function getPath(obj: any, path?: string | null) {
   return path.split(".").reduce((acc: any, key) => acc?.[key], obj);
 }
 
+// Resolve a "smart" path used for the activity actor:
+//   - "lastmsg"            → last entry's `msg` from any array named history/timeline/events/logs
+//   - "history.last.msg"   → last entry's `msg` from `history` array (or any array name)
+//   - any other dotted path → standard getPath()
+function resolveSmartPath(body: any, path?: string | null) {
+  if (!path) return undefined;
+  const trimmed = String(path).trim();
+  if (!trimmed) return undefined;
+  const findHistoryArray = (obj: any): any[] | null => {
+    if (!obj || typeof obj !== "object") return null;
+    for (const key of ["history", "timeline", "events", "logs", "statusHistory"]) {
+      if (Array.isArray(obj[key]) && obj[key].length > 0) return obj[key];
+    }
+    return null;
+  };
+  if (trimmed.toLowerCase() === "lastmsg") {
+    const arr = findHistoryArray(body);
+    if (!arr) return undefined;
+    const last = arr[arr.length - 1];
+    return last?.msg ?? last?.message ?? last?.note ?? last?.user ?? null;
+  }
+  const lastMatch = trimmed.match(/^([a-zA-Z0-9_]+)\.last\.(.+)$/);
+  if (lastMatch) {
+    const [, arrName, rest] = lastMatch;
+    const arr = (body && typeof body === "object") ? (body as any)[arrName] : null;
+    if (!Array.isArray(arr) || arr.length === 0) return undefined;
+    return getPath(arr[arr.length - 1], rest);
+  }
+  return getPath(body, trimmed);
+}
+
 function setPath(obj: Record<string, any>, path: string, value: unknown) {
   const keys = path.split(".");
   let cur = obj;
@@ -80,6 +111,7 @@ function pollingEndpointInfo(settings: any, url: string, method: string, payload
     message_field: settings.polling_message_field,
     reported_date_field: settings.polling_reported_date_field,
     scheduled_date_field: settings.polling_scheduled_date_field,
+    actor_field: settings.polling_actor_field || "lastmsg",
   };
 }
 
@@ -180,6 +212,7 @@ async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatu
     provider_note: meta.note ?? null,
     reported_date: meta.reported_date ?? null,
     scheduled_date: meta.scheduled_date ?? null,
+    actor_label: meta.actor_label ?? null,
   });
   return historyError;
 }
@@ -290,6 +323,8 @@ Deno.serve(async (req) => {
         const scheduledDate = parseDateValue(getPath(body, settings.polling_scheduled_date_field || "scheduledDate"));
         const driverName = getPath(body, settings.polling_driver_name_field || settings.webhook_driver_name_field || "transport.currentDriverName");
         const driverPhone = getPath(body, settings.polling_driver_phone_field || settings.webhook_driver_phone_field || "transport.currentDriverPhone");
+        const actorLabelRaw = resolveSmartPath(body, settings.polling_actor_field || "lastmsg");
+        const actorLabel = actorLabelRaw === undefined || actorLabelRaw === null || String(actorLabelRaw).trim() === "" ? null : String(actorLabelRaw);
         // Capture extra order columns from response if admin configured a polling_order_fields_mapping.
         const extraOrderUpdates: Record<string, unknown> = {};
         const orderFieldsMapping = settings.polling_order_fields_mapping ?? {};
@@ -300,7 +335,7 @@ Deno.serve(async (req) => {
             extraOrderUpdates[String(orderField)] = captured;
           }
         }
-        await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "received", message: `Provider status received: ${mappedStatus}`, details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, previous_status: order.status, note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates } });
+        await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "received", message: `Provider status received: ${mappedStatus}`, details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, previous_status: order.status, note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, actor_label: actorLabel, actor_field: settings.polling_actor_field || "lastmsg", extra_order_updates: extraOrderUpdates } });
         if (mappedStatus === order.status) {
           // Same status as current → no status update, no history insert.
           // Still capture driver info if it changed (driver may be assigned without a status change).
@@ -308,7 +343,7 @@ Deno.serve(async (req) => {
           await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "ignored", message: driverErr ? "Provider status unchanged; driver update failed" : "Provider status matches current order status — no update needed", details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, current_status: order.status, driver_name: driverName, driver_phone: driverPhone, rejection_reason: "status_unchanged", driver_update_error: driverErr?.message ?? null } });
           continue;
         }
-        const updateError = await updateOrderStatusFromProvider(admin, order, mappedStatus, settings.livreur_id, { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates });
+        const updateError = await updateOrderStatusFromProvider(admin, order, mappedStatus, settings.livreur_id, { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates, actor_label: actorLabel });
         if (updateError) {
           await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "failed", message: "Unable to update order status", details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, error: updateError.message } });
           continue;

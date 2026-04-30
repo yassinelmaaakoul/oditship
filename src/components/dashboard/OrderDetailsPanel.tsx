@@ -38,6 +38,7 @@ interface HistoryItem {
   scheduled_date?: string | null;
   changed_at: string;
   actor?: { full_name?: string | null; username?: string | null; role?: string | null } | null;
+  actor_label?: string | null;
 }
 
 interface DetailsData {
@@ -56,7 +57,11 @@ const formatDate = (value?: string | null) => {
 };
 
 const cleanActor = (value?: string | null) => value?.includes("@") ? value.split("@")[0] : value;
-const actorName = (item: HistoryItem) => cleanActor(item.actor?.full_name) || cleanActor(item.actor?.username) || (item.source === "provider" ? "Transport" : "Système");
+const actorName = (item: HistoryItem) => {
+  const label = item.actor_label?.trim();
+  if (label) return label;
+  return cleanActor(item.actor?.full_name) || cleanActor(item.actor?.username) || (item.source === "provider" ? "Transport" : "Système");
+};
 const vendeurName = (vendeur?: DetailsData["vendeur"]) => vendeur?.full_name || vendeur?.username || vendeur?.company_name || "Système";
 const isInternalConfirmed = (item: HistoryItem) =>
   item.source === "odit" && [item.status, item.old_status].some((status) => status?.toLowerCase() === "confirmed");
