@@ -481,47 +481,7 @@ const AdminLivreurs = () => {
     };
   }, [editing, settings]);
 
-  // Detected provider-side field paths from recent logs of the editing livreur,
-  // split by source so the UI can suggest the right keys for webhook vs polling.
-  const detectedProviderFields = useMemo(() => {
-    const webhookSet = new Set<string>();
-    const pollingSet = new Set<string>();
-    const createPackageSet = new Set<string>();
-    if (!editing) return { webhook: [], polling: [], createPackage: [] };
-    for (const log of apiLogs) {
-      if (log.livreur_id !== editing.id) continue;
-      const details = (log.details ?? {}) as any;
-      const receptionPayload = details?.reception?.payload ?? details?.reception?.body ?? null;
-      const sendingResponse = details?.sending?.response_body ?? details?.sending?.body ?? null;
-      if (log.event_type === "webhook_status" && receptionPayload) {
-        collectPaths(receptionPayload, "", webhookSet);
-      } else if (log.event_type === "polling_status") {
-        if (receptionPayload) collectPaths(receptionPayload, "", pollingSet);
-        if (sendingResponse) collectPaths(sendingResponse, "", pollingSet);
-      } else {
-        if (sendingResponse) collectPaths(sendingResponse, "", createPackageSet);
-        if (receptionPayload) collectPaths(receptionPayload, "", createPackageSet);
-      }
-    }
-    const sortAlpha = (a: string, b: string) => a.localeCompare(b);
-    // Configured field paths from the current form (so users always see them).
-    const configuredWebhookPaths = [
-      settingsForm?.webhook_tracking_field, settingsForm?.webhook_status_field,
-      settingsForm?.webhook_note_field, settingsForm?.webhook_reported_date_field,
-      settingsForm?.webhook_scheduled_date_field, settingsForm?.webhook_driver_name_field,
-      settingsForm?.webhook_driver_phone_field,
-    ].filter(Boolean) as string[];
-    const configuredPollingPaths = [
-      settingsForm?.polling_tracking_field, settingsForm?.polling_status_field,
-      settingsForm?.polling_message_field, settingsForm?.polling_reported_date_field,
-      settingsForm?.polling_scheduled_date_field,
-    ].filter(Boolean) as string[];
-    return {
-      webhook: Array.from(new Set([...webhookSet, ...configuredWebhookPaths, ...COMMON_WEBHOOK_PATHS])).sort(sortAlpha),
-      polling: Array.from(new Set([...pollingSet, ...configuredPollingPaths, ...COMMON_POLLING_PATHS])).sort(sortAlpha),
-      createPackage: Array.from(createPackageSet).sort(sortAlpha),
-    };
-  }, [editing, apiLogs, settingsForm]);
+  // detectedProviderFields is defined below, after settingsForm, to avoid TDZ issues.
 
   const [settingsForm, setSettingsForm] = useState({
     create_package_url: "",
