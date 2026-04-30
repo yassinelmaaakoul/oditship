@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
   }
 
   const [{ data: history }, { data: vendeur }, { data: latestWebhookLog }] = await Promise.all([
-    admin.from("order_status_history").select("id, old_status, new_status, changed_at, changed_by, notes, provider_note, reported_date, scheduled_date").eq("order_id", order.id).order("changed_at", { ascending: true }),
+    admin.from("order_status_history").select("id, old_status, new_status, changed_at, changed_by, notes, provider_note, reported_date, scheduled_date, actor_label").eq("order_id", order.id).order("changed_at", { ascending: true }),
     admin.from("profiles").select("id, full_name, username, company_name, phone").eq("id", order.vendeur_id).maybeSingle(),
     admin.from("livreur_api_logs").select("details").eq("order_id", order.id).eq("event_type", "webhook_status").order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
