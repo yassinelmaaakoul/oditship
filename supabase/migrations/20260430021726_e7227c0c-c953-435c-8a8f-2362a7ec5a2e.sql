@@ -1,0 +1,1 @@
+grant execute on function public.get_user_email_by_username(text) to anon, authenticated;
