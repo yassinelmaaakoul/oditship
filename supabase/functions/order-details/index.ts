@@ -284,36 +284,14 @@ Deno.serve(async (req) => {
     (rows ?? []).forEach((p: any) => { actors[p.id] = p; });
   }
 
-  let packageDetails: any = null;
-  let packageError: string | null = null;
+  const packageDetails: any = null;
+  const packageError: string | null = null;
   const tracking = order.external_tracking_number || order.tracking_number;
-  if (false && order.external_tracking_number && OLI_KEY && OLI_SECRET) {
-    try {
-      const token = await olivraisonLogin(OLI_KEY, OLI_SECRET);
-      const providerResponse = await getOlivraisonPackage(token, order.external_tracking_number);
-      packageDetails = providerResponse.body;
-      await logApi(admin, { order_id: order.id, livreur_id: order.assigned_livreur_id, event_type: "order_details_provider_lookup", status: "received", message: `Provider details received for ${order.external_tracking_number}`, details: providerLookupExchange(order.external_tracking_number, providerResponse.status, packageDetails) });
-    } catch (e) {
-      const err = e as Error & { status?: number; body?: unknown };
-      await logApi(admin, { order_id: order.id, livreur_id: order.assigned_livreur_id, event_type: "order_details_provider_lookup", status: "failed", message: err.message || "Provider details lookup failed", details: providerLookupExchange(order.external_tracking_number, err.status ?? null, err.body ?? { error: err.message }) });
-      packageError = "Tracking externe indisponible";
-    }
-  }
 
   const statusMapping = settings?.status_mapping ?? {};
   const apiHistory = Array.isArray(packageDetails?.history) ? packageDetails.history : [];
   const mappedApiStatuses = new Set(apiHistory.map((h: any) => mapProviderStatus(h.status, statusMapping)).filter(Boolean));
-  let currentOrder = order;
-  const latestProviderEvent = latestMappedProviderEvent(apiHistory, statusMapping);
-  if (false && settings?.webhook_updates_current_status === true && order.assigned_livreur_id && latestProviderEvent) {
-    try {
-      currentOrder = await syncCurrentStatusFromProvider(admin, order, latestProviderEvent, order.assigned_livreur_id, settings);
-      await logApi(admin, { order_id: order.id, livreur_id: order.assigned_livreur_id, event_type: "order_details_status_sync", status: latestProviderEvent.mappedStatus === order.status ? "ignored" : "success", message: latestProviderEvent.mappedStatus === order.status ? "Provider status already matches order" : "Order status synced from provider details", details: { tracking, raw_status: latestProviderEvent.status, mapped_status: latestProviderEvent.mappedStatus, previous_status: order.status, provider_event: latestProviderEvent, source: "order_details" } });
-    } catch (e) {
-      await logApi(admin, { order_id: order.id, livreur_id: order.assigned_livreur_id, event_type: "order_details_status_sync", status: "failed", message: e instanceof Error ? e.message : "Unable to sync provider status", details: { tracking, raw_status: latestProviderEvent.status, mapped_status: latestProviderEvent.mappedStatus, previous_status: order.status, provider_event: latestProviderEvent, source: "order_details" } });
-      packageError = "Tracking externe indisponible";
-    }
-  }
+  const currentOrder = order;
   const visibleDbHistory = removeSystemDuplicates(history ?? []);
   const seenTimeline = new Set<string>();
   const mergedHistory = [
