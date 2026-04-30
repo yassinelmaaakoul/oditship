@@ -71,7 +71,19 @@ const OrdersTab = ({ status, allowAction }: { status: "Pickup" | "Ramassé"; all
       .order("created_at", { ascending: false })
       .then(({ data }) => { setOrders((data ?? []) as OrderRow[]); setSelected(new Set()); setLoading(false); });
   };
-  useEffect(load, [status]);
+  useEffect(() => {
+    load();
+    const channel = supabase.channel(`ramassoire-orders-${status}`).on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+      const next = payload.new as OrderRow | null;
+      const old = payload.old as OrderRow | null;
+      setOrders((current) => {
+        if (payload.eventType === "DELETE") return current.filter((order) => order.id !== old?.id);
+        if (!next || next.status !== status) return current.filter((order) => order.id !== next?.id);
+        return current.some((order) => order.id === next.id) ? current.map((order) => order.id === next.id ? { ...order, ...next } : order) : [next, ...current];
+      });
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [status]);
 
   const vendeurIds = useMemo(() => Array.from(new Set(orders.map((o) => o.vendeur_id))), [orders]);
   const vendeurs = useVendeurs(vendeurIds);
