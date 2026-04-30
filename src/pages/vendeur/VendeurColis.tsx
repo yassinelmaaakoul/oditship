@@ -70,9 +70,6 @@ const VendeurColis = () => {
   const agentPages = (profile?.agent_pages ?? {}) as Record<string, boolean | string>;
   const colisScope = agentPages.colis_scope === "own" ? "own" : "all";
 
-  const formatShortDate = (value?: string | null) => value ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(value)) : null;
-  const statusMetaValues = (o: Order) => [o.status_note, formatShortDate(o.postponed_date), formatShortDate(o.scheduled_date)].filter(Boolean) as string[];
-
   const load = async () => {
     if (!user) return;
     setLoading(true);
