@@ -211,6 +211,7 @@ async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatu
     provider_note: meta.note ?? null,
     reported_date: meta.reported_date ?? null,
     scheduled_date: meta.scheduled_date ?? null,
+    actor_label: meta.actor_label ?? null,
   });
   return historyError;
 }
