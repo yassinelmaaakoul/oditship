@@ -23,7 +23,7 @@ const AdminParametres = () => {
         <TabsTrigger value="hubs">Hubs</TabsTrigger>
         <TabsTrigger value="livreurs">Livreurs & API</TabsTrigger>
         <TabsTrigger value="sticker">Sticker</TabsTrigger>
-        <TabsTrigger value="colis-preview">Edit preview colis</TabsTrigger>
+        <TabsTrigger value="colis-preview">Info Colis</TabsTrigger>
       </TabsList>
       <TabsContent value="cities" className="mt-4"><AdminCities /></TabsContent>
       <TabsContent value="hubs" className="mt-4"><AdminHubs /></TabsContent>
