@@ -334,7 +334,7 @@ Deno.serve(async (req) => {
             extraOrderUpdates[String(orderField)] = captured;
           }
         }
-        await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "received", message: `Provider status received: ${mappedStatus}`, details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, previous_status: order.status, note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates } });
+        await logApi(admin, { order_id: order.id, livreur_id: settings.livreur_id, event_type: "polling_status", status: "received", message: `Provider status received: ${mappedStatus}`, details: { endpoint, ...exchange, tracking, raw_status: rawStatus, mapped_status: mappedStatus, previous_status: order.status, note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, actor_label: actorLabel, actor_field: settings.polling_actor_field || "lastmsg", extra_order_updates: extraOrderUpdates } });
         if (mappedStatus === order.status) {
           // Same status as current → no status update, no history insert.
           // Still capture driver info if it changed (driver may be assigned without a status change).
