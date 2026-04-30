@@ -119,6 +119,7 @@ Deno.serve(async (req) => {
       scheduled_date: h.scheduled_date ?? null,
       changed_at: h.changed_at,
       actor: h.changed_by && h.changed_by !== order.assigned_livreur_id ? actors[h.changed_by] ?? null : null,
+      actor_label: h.actor_label ?? null,
     }))
     .sort((a: any, b: any) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime());
 
