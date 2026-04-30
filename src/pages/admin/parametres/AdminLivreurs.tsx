@@ -504,12 +504,24 @@ const AdminLivreurs = () => {
       }
     }
     const sortAlpha = (a: string, b: string) => a.localeCompare(b);
+    // Configured field paths from the current form (so users always see them).
+    const configuredWebhookPaths = [
+      settingsForm?.webhook_tracking_field, settingsForm?.webhook_status_field,
+      settingsForm?.webhook_note_field, settingsForm?.webhook_reported_date_field,
+      settingsForm?.webhook_scheduled_date_field, settingsForm?.webhook_driver_name_field,
+      settingsForm?.webhook_driver_phone_field,
+    ].filter(Boolean) as string[];
+    const configuredPollingPaths = [
+      settingsForm?.polling_tracking_field, settingsForm?.polling_status_field,
+      settingsForm?.polling_message_field, settingsForm?.polling_reported_date_field,
+      settingsForm?.polling_scheduled_date_field,
+    ].filter(Boolean) as string[];
     return {
-      webhook: Array.from(webhookSet).sort(sortAlpha),
-      polling: Array.from(pollingSet).sort(sortAlpha),
+      webhook: Array.from(new Set([...webhookSet, ...configuredWebhookPaths, ...COMMON_WEBHOOK_PATHS])).sort(sortAlpha),
+      polling: Array.from(new Set([...pollingSet, ...configuredPollingPaths, ...COMMON_POLLING_PATHS])).sort(sortAlpha),
       createPackage: Array.from(createPackageSet).sort(sortAlpha),
     };
-  }, [editing, apiLogs]);
+  }, [editing, apiLogs, settingsForm]);
 
   const [settingsForm, setSettingsForm] = useState({
     create_package_url: "",
