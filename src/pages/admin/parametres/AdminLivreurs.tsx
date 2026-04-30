@@ -55,6 +55,7 @@ interface LivreurApiSettings {
   polling_driver_phone_field: string;
   polling_extra_fields_mapping: Record<string, string>;
   polling_order_fields_mapping: Record<string, string>;
+  polling_actor_field: string;
   rate_limit_per_second: number;
   is_active: boolean;
 }
