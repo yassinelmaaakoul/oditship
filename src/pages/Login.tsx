@@ -26,11 +26,15 @@ const Login = () => {
     try {
       const uname = username.trim().toLowerCase();
 
-      // Resolve email via SECURITY DEFINER RPC (works for anon users; profiles RLS would block direct SELECT)
-      const { data: emailRow, error: eErr } = await (supabase.rpc as any)(
-        "get_user_email_by_username",
-        { _username: uname }
-      );
+      const isEmail = uname.includes("@");
+      let emailRow: string | null = isEmail ? uname : null;
+      let eErr: unknown = null;
+
+      if (!isEmail) {
+        const result = await (supabase.rpc as any)("get_user_email_by_username", { _username: uname });
+        emailRow = result.data;
+        eErr = result.error;
+      }
 
       if (eErr) {
         console.error("[Login] RPC error:", eErr);
