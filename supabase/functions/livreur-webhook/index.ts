@@ -273,6 +273,8 @@ Deno.serve(async (req) => {
   const scheduledDate = parseDateValue(getPath(payload, settings?.webhook_scheduled_date_field || "scheduledDate"));
   const driverName = getPath(payload, settings?.webhook_driver_name_field || "transport.currentDriverName") ?? null;
   const driverPhone = getPath(payload, settings?.webhook_driver_phone_field || "transport.currentDriverPhone") ?? null;
+  const actorLabelRaw = resolveSmartPath(payload, settings?.webhook_actor_field || "lastmsg");
+  const actorLabel = actorLabelRaw === undefined || actorLabelRaw === null || String(actorLabelRaw).trim() === "" ? null : String(actorLabelRaw);
   // Capture admin-configured extra order column updates from the webhook body.
   const extraOrderUpdates: Record<string, unknown> = {};
   const orderFieldsMapping = settings?.webhook_order_fields_mapping ?? {};
@@ -283,7 +285,7 @@ Deno.serve(async (req) => {
       extraOrderUpdates[String(orderField)] = captured;
     }
   }
-  const meta = { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates };
+  const meta = { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates, actor_label: actorLabel };
   const capturedFields = buildCapturedFields(payload, settings?.webhook_extra_fields_mapping ?? {});
 
   if (!tracking || !String(rawStatus ?? "").trim()) {
