@@ -461,6 +461,37 @@ const AdminLivreurs = () => {
       api_operations: (editing.create_package_config as any)?.operations ?? current.api_operations,
     };
   }, [editing, settings]);
+
+  // Detected provider-side field paths from recent logs of the editing livreur,
+  // split by source so the UI can suggest the right keys for webhook vs polling.
+  const detectedProviderFields = useMemo(() => {
+    const webhookSet = new Set<string>();
+    const pollingSet = new Set<string>();
+    const createPackageSet = new Set<string>();
+    if (!editing) return { webhook: [], polling: [], createPackage: [] };
+    for (const log of apiLogs) {
+      if (log.livreur_id !== editing.id) continue;
+      const details = (log.details ?? {}) as any;
+      const receptionPayload = details?.reception?.payload ?? details?.reception?.body ?? null;
+      const sendingResponse = details?.sending?.response_body ?? details?.sending?.body ?? null;
+      if (log.event_type === "webhook_status" && receptionPayload) {
+        collectPaths(receptionPayload, "", webhookSet);
+      } else if (log.event_type === "polling_status") {
+        if (receptionPayload) collectPaths(receptionPayload, "", pollingSet);
+        if (sendingResponse) collectPaths(sendingResponse, "", pollingSet);
+      } else {
+        if (sendingResponse) collectPaths(sendingResponse, "", createPackageSet);
+        if (receptionPayload) collectPaths(receptionPayload, "", createPackageSet);
+      }
+    }
+    const sortAlpha = (a: string, b: string) => a.localeCompare(b);
+    return {
+      webhook: Array.from(webhookSet).sort(sortAlpha),
+      polling: Array.from(pollingSet).sort(sortAlpha),
+      createPackage: Array.from(createPackageSet).sort(sortAlpha),
+    };
+  }, [editing, apiLogs]);
+
   const [settingsForm, setSettingsForm] = useState({
     create_package_url: "",
     create_package_method: "POST",
