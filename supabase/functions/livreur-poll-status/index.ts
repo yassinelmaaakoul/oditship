@@ -322,6 +322,8 @@ Deno.serve(async (req) => {
         const scheduledDate = parseDateValue(getPath(body, settings.polling_scheduled_date_field || "scheduledDate"));
         const driverName = getPath(body, settings.polling_driver_name_field || settings.webhook_driver_name_field || "transport.currentDriverName");
         const driverPhone = getPath(body, settings.polling_driver_phone_field || settings.webhook_driver_phone_field || "transport.currentDriverPhone");
+        const actorLabelRaw = resolveSmartPath(body, settings.polling_actor_field || "lastmsg");
+        const actorLabel = actorLabelRaw === undefined || actorLabelRaw === null || String(actorLabelRaw).trim() === "" ? null : String(actorLabelRaw);
         // Capture extra order columns from response if admin configured a polling_order_fields_mapping.
         const extraOrderUpdates: Record<string, unknown> = {};
         const orderFieldsMapping = settings.polling_order_fields_mapping ?? {};
