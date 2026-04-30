@@ -140,7 +140,19 @@ async function listPollingOrders(admin: any, livreurId: string) {
 }
 
 async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatus: string, livreurId: string, meta: Record<string, unknown>) {
-  const { error: updateError } = await admin.from("orders").update({ status: mappedStatus, status_note: meta.note ?? null, postponed_date: meta.reported_date ?? null, scheduled_date: meta.scheduled_date ?? null }).eq("id", order.id);
+  const updatePayload: Record<string, unknown> = {
+    status: mappedStatus,
+    status_note: meta.note ?? null,
+    postponed_date: meta.reported_date ?? null,
+    scheduled_date: meta.scheduled_date ?? null,
+  };
+  if (meta.driver_name !== undefined && meta.driver_name !== null && String(meta.driver_name).trim() !== "") {
+    updatePayload.driver_name = String(meta.driver_name);
+  }
+  if (meta.driver_phone !== undefined && meta.driver_phone !== null && String(meta.driver_phone).trim() !== "") {
+    updatePayload.driver_phone = String(meta.driver_phone);
+  }
+  const { error: updateError } = await admin.from("orders").update(updatePayload).eq("id", order.id);
   if (updateError) return updateError;
   const { error: historyError } = await admin.from("order_status_history").insert({
     order_id: order.id,
@@ -153,6 +165,17 @@ async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatu
     scheduled_date: meta.scheduled_date ?? null,
   });
   return historyError;
+}
+
+async function updateDriverInfoOnly(admin: any, order: any, driverName: unknown, driverPhone: unknown) {
+  const patch: Record<string, unknown> = {};
+  const newName = driverName === undefined || driverName === null ? "" : String(driverName).trim();
+  const newPhone = driverPhone === undefined || driverPhone === null ? "" : String(driverPhone).trim();
+  if (newName && newName !== (order.driver_name ?? "")) patch.driver_name = newName;
+  if (newPhone && newPhone !== (order.driver_phone ?? "")) patch.driver_phone = newPhone;
+  if (Object.keys(patch).length === 0) return null;
+  const { error } = await admin.from("orders").update(patch).eq("id", order.id);
+  return error;
 }
 
 async function authenticate(order: Record<string, any>, headers: Record<string, string>, authConfig: Record<string, any> | null) {
