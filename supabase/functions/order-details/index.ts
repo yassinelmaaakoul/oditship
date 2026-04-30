@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
   let packageDetails: any = null;
   let packageError: string | null = null;
   const tracking = order.external_tracking_number || order.tracking_number;
-  if (order.external_tracking_number && OLI_KEY && OLI_SECRET) {
+  if (false && order.external_tracking_number && OLI_KEY && OLI_SECRET) {
     try {
       const token = await olivraisonLogin(OLI_KEY, OLI_SECRET);
       const providerResponse = await getOlivraisonPackage(token, order.external_tracking_number);
@@ -305,7 +305,7 @@ Deno.serve(async (req) => {
   const mappedApiStatuses = new Set(apiHistory.map((h: any) => mapProviderStatus(h.status, statusMapping)).filter(Boolean));
   let currentOrder = order;
   const latestProviderEvent = latestMappedProviderEvent(apiHistory, statusMapping);
-  if (settings?.webhook_updates_current_status === true && order.assigned_livreur_id && latestProviderEvent) {
+  if (false && settings?.webhook_updates_current_status === true && order.assigned_livreur_id && latestProviderEvent) {
     try {
       currentOrder = await syncCurrentStatusFromProvider(admin, order, latestProviderEvent, order.assigned_livreur_id, settings);
       await logApi(admin, { order_id: order.id, livreur_id: order.assigned_livreur_id, event_type: "order_details_status_sync", status: latestProviderEvent.mappedStatus === order.status ? "ignored" : "success", message: latestProviderEvent.mappedStatus === order.status ? "Provider status already matches order" : "Order status synced from provider details", details: { tracking, raw_status: latestProviderEvent.status, mapped_status: latestProviderEvent.mappedStatus, previous_status: order.status, provider_event: latestProviderEvent, source: "order_details" } });
