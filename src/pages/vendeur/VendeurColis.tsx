@@ -15,6 +15,7 @@ import { printSticker, printStickers } from "@/lib/printSticker";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Pencil, Trash2, Printer, Plus, Search, CheckCircle2, PackageCheck, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { COLIS_PREVIEW_SETTING_KEY, colisSectionStyle, defaultColisPreviewSettings, getColisPreviewValue, normalizeColisPreviewSettings, renderColisTemplate, sanitizeColisHtml, sortedVisibleFields, type ColisPreviewSettings } from "@/lib/colisPreview";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -60,6 +61,7 @@ const VendeurColis = () => {
   const [agents, setAgents] = useState<{ id: string; full_name: string | null; username: string }[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+  const [previewSettings, setPreviewSettings] = useState<ColisPreviewSettings>(defaultColisPreviewSettings);
 
   const [confirming, setConfirming] = useState(false);
   const [pickingUp, setPickingUp] = useState(false);
@@ -67,9 +69,6 @@ const VendeurColis = () => {
   const isAgent = profile?.agent_of != null;
   const agentPages = (profile?.agent_pages ?? {}) as Record<string, boolean | string>;
   const colisScope = agentPages.colis_scope === "own" ? "own" : "all";
-
-  const formatShortDate = (value?: string | null) => value ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "short" }).format(new Date(value)) : null;
-  const statusMetaValues = (o: Order) => [o.status_note, formatShortDate(o.postponed_date), formatShortDate(o.scheduled_date)].filter(Boolean) as string[];
 
   const load = async () => {
     if (!user) return;
@@ -90,8 +89,22 @@ const VendeurColis = () => {
     if (user) {
       supabase.from("profiles").select("id, full_name, username").eq("agent_of", user.id)
         .then(({ data }) => setAgents(data ?? []));
+      (supabase as any).from("app_settings").select("value").eq("key", COLIS_PREVIEW_SETTING_KEY).maybeSingle()
+        .then(({ data }: any) => setPreviewSettings(normalizeColisPreviewSettings(data?.value)));
     }
   }, [user, isAgent, colisScope]);
+
+  const rowData = (o: Order) => ({ ...o, tracking: o.external_tracking_number || o.tracking_number || `ODiT-${o.id}` });
+  const renderMainCell = (o: Order) => {
+    const section = previewSettings.main;
+    const data = rowData(o);
+    if (section.useCustomHtml) return <div style={colisSectionStyle(section, data)} dangerouslySetInnerHTML={{ __html: sanitizeColisHtml(`<style>${renderColisTemplate(section.css, data)}</style>${renderColisTemplate(section.html, data)}`) }} />;
+    return <div className={cn("space-y-1 border", section.layout === "inline" && "flex flex-wrap items-center", section.layout === "grid" && "grid grid-cols-2")} style={colisSectionStyle(section, data)}>
+      <div className="flex flex-wrap items-center gap-2">{sortedVisibleFields(section, "primary").map((field) => <span key={field.key} className="font-medium">{getColisPreviewValue(data, field.key)}</span>)}</div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">{sortedVisibleFields(section, "secondary").map((field) => <span key={field.key}>{getColisPreviewValue(data, field.key)}</span>)}</div>
+      <div className="flex flex-wrap items-center gap-1.5">{sortedVisibleFields(section, "meta").map((field) => { const value = getColisPreviewValue(data, field.key); return value ? <span key={field.key} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">{value}</span> : null; })}</div>
+    </div>;
+  };
 
   const filtered = useMemo(() => {
     return orders.filter((o) => {
@@ -316,13 +329,7 @@ const VendeurColis = () => {
                   <Checkbox checked={selected.has(o.id)} onCheckedChange={() => toggleOne(o.id)} aria-label={`Sélectionner ${o.id}`} />
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-medium">{o.customer_name}</span>
-                    {statusMetaValues(o).map((value, index) => (
-                      <span key={`${o.id}-meta-${index}`} className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{value}</span>
-                    ))}
-                  </div>
-                  <div className="text-xs text-muted-foreground">{o.product_name}</div>
+                  {renderMainCell(o)}
                 </TableCell>
                 <TableCell>{o.customer_city}</TableCell>
                 <TableCell className="font-mono text-sm">{o.customer_phone}</TableCell>
@@ -356,7 +363,7 @@ const VendeurColis = () => {
               {expandedOrderId === o.id && (
                 <TableRow key={`${o.id}-details`}>
                   <TableCell colSpan={7} className="bg-muted/20 p-0">
-                    <OrderDetailsPanel order={o} onOrderSynced={syncOrderInList} />
+                    <OrderDetailsPanel order={o} onOrderSynced={syncOrderInList} previewSettings={previewSettings} />
                   </TableCell>
                 </TableRow>
               )}
