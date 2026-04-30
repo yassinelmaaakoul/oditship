@@ -36,8 +36,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Track the currently loaded user id so we only refresh the profile when
+    // the actual user changes (login/logout/switch). Token refreshes that fire
+    // when the browser tab regains focus must NOT toggle `loading` — otherwise
+    // ProtectedRoute unmounts the whole subtree (including any open dialog
+    // or popup) and the user loses their place in the UI.
+    let currentUserId: string | null = null;
+
     // Listener FIRST
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       // While an impersonation is active in another tab, ignore auth events
       // so the admin tab's context (and therefore sidebar/URL) is not altered.
       try {
@@ -50,16 +57,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setSession(sess);
       setUser(sess?.user ?? null);
-      if (sess?.user) {
-        setLoading(true);
-        // Defer the supabase call to avoid auth deadlock, but track loading
-        setTimeout(() => {
-          loadProfile(sess.user.id).finally(() => setLoading(false));
-        }, 0);
-      } else {
+
+      const nextUserId = sess?.user?.id ?? null;
+
+      // Pure background refreshes — never touch loading or reload profile.
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        return;
+      }
+
+      if (nextUserId && nextUserId !== currentUserId) {
+        // Real user change (login or account switch) — reload profile.
+        currentUserId = nextUserId;
+        // Defer the supabase call to avoid auth deadlock.
+        setTimeout(() => { loadProfile(nextUserId); }, 0);
+      } else if (!nextUserId) {
+        currentUserId = null;
         setProfile(null);
         setRole(null);
-        setLoading(false);
       }
     });
 
@@ -67,7 +81,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
-      if (data.session?.user) await loadProfile(data.session.user.id);
+      if (data.session?.user) {
+        currentUserId = data.session.user.id;
+        await loadProfile(data.session.user.id);
+      }
       setLoading(false);
     });
 

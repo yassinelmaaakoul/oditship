@@ -263,6 +263,123 @@ const KeyValueEditor = ({ label, help, value, onChange, keyPlaceholder = "Key", 
   );
 };
 
+// All known order/system fields available for mapping.
+const SYSTEM_ORDER_FIELDS: string[] = [
+  "id", "tracking_number", "external_tracking_number", "partner_tracking_id", "barcode",
+  "customer_name", "customer_phone", "customer_address", "customer_city",
+  "product_name", "order_value", "comment", "open_package",
+  "status", "status_note", "return_note",
+  "scheduled_date", "postponed_date", "delivered_at",
+  "vendeur_id", "agent_id", "assigned_livreur_id", "hub_id",
+  "qr_code", "created_at", "updated_at",
+];
+
+// Recursively collect all paths from a JSON object (dot.notation).
+const collectPaths = (obj: any, prefix = "", out: Set<string> = new Set(), depth = 0): Set<string> => {
+  if (depth > 6 || obj === null || obj === undefined) return out;
+  if (typeof obj !== "object" || Array.isArray(obj)) {
+    if (prefix) out.add(prefix);
+    return out;
+  }
+  for (const [key, value] of Object.entries(obj)) {
+    const next = prefix ? `${prefix}.${key}` : key;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      out.add(next);
+      collectPaths(value, next, out, depth + 1);
+    } else {
+      out.add(next);
+    }
+  }
+  return out;
+};
+
+// Smart mapping editor: dropdowns for both columns + free-text fallback.
+const SmartMappingEditor = ({
+  label, help, value, onChange,
+  keyOptions, valueOptions,
+  keyPlaceholder = "Provider field", valuePlaceholder = "Order field",
+}: {
+  label: string; help: string; value: string; onChange: (value: string) => void;
+  keyOptions: string[]; valueOptions: string[];
+  keyPlaceholder?: string; valuePlaceholder?: string;
+}) => {
+  const [pairs, setPairs] = useState<Array<[string, string]>>(() => Object.entries(safeRecord(value)));
+  const [keyModes, setKeyModes] = useState<Record<number, "select" | "custom">>({});
+  const [valueModes, setValueModes] = useState<Record<number, "select" | "custom">>({});
+
+  useEffect(() => { setPairs(Object.entries(safeRecord(value))); }, [value]);
+
+  const emit = (nextPairs: Array<[string, string]>) =>
+    onChange(JSON.stringify(
+      Object.fromEntries(nextPairs.filter(([k]) => k.trim()).map(([k, v]) => [k.trim(), v])),
+      null, 2,
+    ));
+  const updatePairs = (nextPairs: Array<[string, string]>) => { setPairs(nextPairs); emit(nextPairs); };
+
+  const renderField = (
+    val: string, opts: string[], mode: "select" | "custom" | undefined,
+    setMode: (m: "select" | "custom") => void, onValChange: (v: string) => void,
+    placeholder: string,
+  ) => {
+    const effectiveMode = mode ?? (val && !opts.includes(val) ? "custom" : "select");
+    if (effectiveMode === "custom") {
+      return (
+        <div className="flex gap-1">
+          <Input value={val} placeholder={placeholder} onChange={(e) => onValChange(e.target.value)} />
+          <Button type="button" variant="ghost" size="sm" className="px-2" title="Use list" onClick={() => setMode("select")}>
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <Select value={opts.includes(val) ? val : ""} onValueChange={(v) => { if (v === "__custom__") setMode("custom"); else onValChange(v); }}>
+        <SelectTrigger><SelectValue placeholder={placeholder} /></SelectTrigger>
+        <SelectContent className="max-h-72">
+          {opts.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">No suggestions yet</div>}
+          {opts.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          <SelectItem value="__custom__">✎ Custom value...</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  };
+
+  const rows = pairs.length ? pairs : [["", ""] as [string, string]];
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <Label>{label}</Label>
+        <FieldHelp>{help}</FieldHelp>
+      </div>
+      <div className="space-y-2">
+        {rows.map(([key, item], index) => (
+          <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_40px]">
+            {renderField(
+              key, keyOptions, keyModes[index],
+              (m) => setKeyModes({ ...keyModes, [index]: m }),
+              (v) => updatePairs(rows.map((pair, i): [string, string] => i === index ? [v, pair[1]] : pair)),
+              keyPlaceholder,
+            )}
+            {renderField(
+              item, valueOptions, valueModes[index],
+              (m) => setValueModes({ ...valueModes, [index]: m }),
+              (v) => updatePairs(rows.map((pair, i): [string, string] => i === index ? [pair[0], v] : pair)),
+              valuePlaceholder,
+            )}
+            <Button type="button" variant="ghost" size="icon" className="h-10 w-10" onClick={() => updatePairs(pairs.filter((_, i) => i !== index))} disabled={!pairs.length}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
+      <Button type="button" variant="outline" size="sm" onClick={() => updatePairs([...pairs, ["", ""]])}>
+        <Plus className="mr-1 h-4 w-4" /> Add row
+      </Button>
+    </div>
+  );
+};
+
 const AuthConfigEditor = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
   const auth = safeObject(value);
   const update = (patch: Record<string, unknown>) => onChange(JSON.stringify({ ...auth, ...patch }, null, 2));
@@ -344,6 +461,37 @@ const AdminLivreurs = () => {
       api_operations: (editing.create_package_config as any)?.operations ?? current.api_operations,
     };
   }, [editing, settings]);
+
+  // Detected provider-side field paths from recent logs of the editing livreur,
+  // split by source so the UI can suggest the right keys for webhook vs polling.
+  const detectedProviderFields = useMemo(() => {
+    const webhookSet = new Set<string>();
+    const pollingSet = new Set<string>();
+    const createPackageSet = new Set<string>();
+    if (!editing) return { webhook: [], polling: [], createPackage: [] };
+    for (const log of apiLogs) {
+      if (log.livreur_id !== editing.id) continue;
+      const details = (log.details ?? {}) as any;
+      const receptionPayload = details?.reception?.payload ?? details?.reception?.body ?? null;
+      const sendingResponse = details?.sending?.response_body ?? details?.sending?.body ?? null;
+      if (log.event_type === "webhook_status" && receptionPayload) {
+        collectPaths(receptionPayload, "", webhookSet);
+      } else if (log.event_type === "polling_status") {
+        if (receptionPayload) collectPaths(receptionPayload, "", pollingSet);
+        if (sendingResponse) collectPaths(sendingResponse, "", pollingSet);
+      } else {
+        if (sendingResponse) collectPaths(sendingResponse, "", createPackageSet);
+        if (receptionPayload) collectPaths(receptionPayload, "", createPackageSet);
+      }
+    }
+    const sortAlpha = (a: string, b: string) => a.localeCompare(b);
+    return {
+      webhook: Array.from(webhookSet).sort(sortAlpha),
+      polling: Array.from(pollingSet).sort(sortAlpha),
+      createPackage: Array.from(createPackageSet).sort(sortAlpha),
+    };
+  }, [editing, apiLogs]);
+
   const [settingsForm, setSettingsForm] = useState({
     create_package_url: "",
     create_package_method: "POST",
@@ -782,7 +930,7 @@ const AdminLivreurs = () => {
               </div>
               <div><Label>Response tracking path</Label><Input value={settingsForm.response_tracking_path} onChange={(e) => setSettingsForm({ ...settingsForm, response_tracking_path: e.target.value })} placeholder="trackingID" /><FieldHelp>Where the tracking number is found in the create package response. Use nested paths like data.trackingID when needed.</FieldHelp></div>
               <KeyValueEditor label="Headers" help="Optional headers sent with the package creation request. Add one key/value per row." value={settingsForm.create_package_headers} onChange={(value) => setSettingsForm({ ...settingsForm, create_package_headers: value })} keyPlaceholder="Content-Type" valuePlaceholder="application/json" />
-              <KeyValueEditor label="Payload mapping" help="Left side is the provider field name. Right side is our order field, for example customer_phone or order_value." value={settingsForm.create_package_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, create_package_mapping: value })} keyPlaceholder="Provider field" valuePlaceholder="Order field" />
+              <SmartMappingEditor label="Payload mapping" help="Left = provider field name (free text or detected from past responses). Right = order field sent as the value. Use Add row to capture every body field freely." value={settingsForm.create_package_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, create_package_mapping: value })} keyOptions={detectedProviderFields.createPackage} valueOptions={SYSTEM_ORDER_FIELDS} keyPlaceholder="Provider field" valuePlaceholder="Order field" />
             </Card>
             <Card className="p-4 space-y-4">
               <SectionHeader icon={ShieldCheck} title="Authentication & payloads" description="Optional login/token request used before calling protected provider endpoints." />
@@ -805,7 +953,7 @@ const AdminLivreurs = () => {
                 <div><Label>Webhook date Reporté field</Label><Input value={settingsForm.webhook_reported_date_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_reported_date_field: e.target.value })} /><FieldHelp>Path used to capture postponed delivery date.</FieldHelp></div>
                 <div><Label>Webhook date Programmé field</Label><Input value={settingsForm.webhook_scheduled_date_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_scheduled_date_field: e.target.value })} /><FieldHelp>Path used to capture scheduled delivery date.</FieldHelp></div>
               </div>
-              <KeyValueEditor label="Webhook extra fields" help="Optional values captured from the webhook body for future use. Left side is the saved key, right side is the webhook body path." value={settingsForm.webhook_extra_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, webhook_extra_fields_mapping: value })} keyPlaceholder="Saved key" valuePlaceholder="Webhook path" />
+              <SmartMappingEditor label="Webhook extra fields" help="Capture extra info from incoming webhook bodies. Left = a key you choose (free text). Right = the webhook path, picked from fields detected in this driver's recent webhook receptions." value={settingsForm.webhook_extra_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, webhook_extra_fields_mapping: value })} keyOptions={[]} valueOptions={detectedProviderFields.webhook} keyPlaceholder="Saved key" valuePlaceholder="Webhook body path" />
               <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"><span>Webhook updates current status</span><Switch checked={settingsForm.webhook_updates_current_status} onCheckedChange={(v) => setSettingsForm({ ...settingsForm, webhook_updates_current_status: v })} /></label>
               <FieldHelp>When API and webhook are both enabled, webhook notifications are saved in logs first and polling should fetch the complete current status. When only webhook is enabled, this switch lets the webhook body update the current order status directly.</FieldHelp>
               <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"><span>Settings enabled</span><Switch checked={settingsForm.is_active} onCheckedChange={(v) => setSettingsForm({ ...settingsForm, is_active: v })} /></label>
@@ -819,7 +967,7 @@ const AdminLivreurs = () => {
               </div>
               <div><Label>Status URL</Label><Input value={settingsForm.polling_status_url} onChange={(e) => setSettingsForm({ ...settingsForm, polling_status_url: e.target.value })} placeholder="https://..." /><FieldHelp>Endpoint used to fetch the latest provider status for an order.</FieldHelp></div>
               <KeyValueEditor label="Polling headers" help="Optional headers sent with the status polling request." value={settingsForm.polling_status_headers} onChange={(value) => setSettingsForm({ ...settingsForm, polling_status_headers: value })} keyPlaceholder="Header" valuePlaceholder="Value" />
-              <KeyValueEditor label="Polling payload mapping" help="Mapping used for status requests, especially when the method is POST." value={settingsForm.polling_status_payload_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, polling_status_payload_mapping: value })} keyPlaceholder="Provider field" valuePlaceholder="Order field" />
+              <SmartMappingEditor label="Polling payload mapping" help="Used for status polling requests (POST). Left = provider field, suggested from this driver's recent polling responses. Right = order field used as the value." value={settingsForm.polling_status_payload_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, polling_status_payload_mapping: value })} keyOptions={detectedProviderFields.polling} valueOptions={SYSTEM_ORDER_FIELDS} keyPlaceholder="Provider field" valuePlaceholder="Order field" />
               <div className="grid gap-3 sm:grid-cols-3">
                 <div><Label>Tracking field</Label><Input value={settingsForm.polling_tracking_field} onChange={(e) => setSettingsForm({ ...settingsForm, polling_tracking_field: e.target.value })} /></div>
                 <div><Label>Status field</Label><Input value={settingsForm.polling_status_field} onChange={(e) => setSettingsForm({ ...settingsForm, polling_status_field: e.target.value })} /></div>
