@@ -240,7 +240,17 @@ Deno.serve(async (req) => {
   const scheduledDate = parseDateValue(getPath(payload, settings?.webhook_scheduled_date_field || "scheduledDate"));
   const driverName = getPath(payload, settings?.webhook_driver_name_field || "transport.currentDriverName") ?? null;
   const driverPhone = getPath(payload, settings?.webhook_driver_phone_field || "transport.currentDriverPhone") ?? null;
-  const meta = { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone };
+  // Capture admin-configured extra order column updates from the webhook body.
+  const extraOrderUpdates: Record<string, unknown> = {};
+  const orderFieldsMapping = settings?.webhook_order_fields_mapping ?? {};
+  for (const [orderField, responsePath] of Object.entries(orderFieldsMapping)) {
+    if (!orderField || !responsePath) continue;
+    const captured = getPath(payload, String(responsePath));
+    if (captured !== undefined && captured !== null && String(captured).trim() !== "") {
+      extraOrderUpdates[String(orderField)] = captured;
+    }
+  }
+  const meta = { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone, extra_order_updates: extraOrderUpdates };
   const capturedFields = buildCapturedFields(payload, settings?.webhook_extra_fields_mapping ?? {});
 
   if (!tracking || !String(rawStatus ?? "").trim()) {
