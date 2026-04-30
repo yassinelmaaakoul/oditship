@@ -28,6 +28,7 @@ interface LivreurApiSettings {
   validation_rules: Record<string, unknown>;
   status_mapping: Record<string, string>;
   webhook_updates_current_status: boolean;
+  webhook_enabled: boolean;
   webhook_status_field: string;
   webhook_tracking_field: string;
   webhook_driver_name_field: string;
@@ -100,6 +101,7 @@ const defaultSettings = (livreurId: string): LivreurApiSettings => ({
     CONFIRMED: "Confirmé",
   },
   webhook_updates_current_status: true,
+  webhook_enabled: false,
   webhook_status_field: "status",
   webhook_tracking_field: "trackingID",
   webhook_driver_name_field: "transport.currentDriverName",
@@ -342,6 +344,7 @@ const AdminLivreurs = () => {
     validation_rules: "{}",
     status_mapping: "{}",
     webhook_updates_current_status: true,
+    webhook_enabled: false,
     webhook_status_field: "status",
     webhook_tracking_field: "trackingID",
     webhook_driver_name_field: "transport.currentDriverName",
@@ -399,6 +402,7 @@ const AdminLivreurs = () => {
       validation_rules: formatJson(activeSettings.validation_rules),
       status_mapping: formatJson(activeSettings.status_mapping),
       webhook_updates_current_status: activeSettings.webhook_updates_current_status,
+      webhook_enabled: (activeSettings as any).webhook_enabled ?? false,
       webhook_status_field: activeSettings.webhook_status_field || "status",
       webhook_tracking_field: activeSettings.webhook_tracking_field || "trackingID",
       webhook_driver_name_field: activeSettings.webhook_driver_name_field || "transport.currentDriverName",
@@ -447,7 +451,14 @@ const AdminLivreurs = () => {
   const toggleApi = async (l: Livreur, v: boolean) => {
     const { error } = await supabase.from("profiles").update({ api_enabled: v }).eq("id", l.id);
     if (error) toast.error(error.message);
-    else { toast.success(v ? "API enabled" : "API disabled"); load(); }
+    else { toast.info(v ? "API enabled: confirmed orders will be sent to the driver's provider to create external tracking." : "API disabled: the app will generate internal tracking numbers instead of creating packages through the provider."); load(); }
+  };
+
+  const toggleWebhook = async (l: Livreur, v: boolean) => {
+    const current = settings[l.id] ?? defaultSettings(l.id);
+    const { error } = await db.from("livreur_api_settings").upsert({ ...current, livreur_id: l.id, webhook_enabled: v }, { onConflict: "livreur_id" });
+    if (error) toast.error(error.message);
+    else { toast.info(v ? "Webhook enabled: incoming provider notifications will be accepted, logged, and used according to this driver's API/polling setup." : "Webhook disabled: incoming provider notifications will be logged as ignored and will not update orders."); load(); }
   };
 
   const regenToken = async (l: Livreur) => {
@@ -472,6 +483,7 @@ const AdminLivreurs = () => {
         validation_rules: parseJson("Validation", settingsForm.validation_rules),
         status_mapping: parseJson("Mapping status", settingsForm.status_mapping),
         webhook_updates_current_status: settingsForm.webhook_updates_current_status,
+        webhook_enabled: settingsForm.webhook_enabled,
         webhook_status_field: settingsForm.webhook_status_field.trim() || "status",
         webhook_tracking_field: settingsForm.webhook_tracking_field.trim() || "trackingID",
         webhook_driver_name_field: settingsForm.webhook_driver_name_field.trim() || "transport.currentDriverName",
@@ -600,7 +612,7 @@ const AdminLivreurs = () => {
             <TableRow>
               <TableHead>Livreur</TableHead>
               <TableHead>Hubs assignés</TableHead>
-              <TableHead>API enabled</TableHead>
+              <TableHead>API / Webhook</TableHead>
               <TableHead>API Token</TableHead>
               <TableHead>Settings</TableHead>
             </TableRow>
@@ -646,7 +658,12 @@ const AdminLivreurs = () => {
                       </Popover>
                     </div>
                   </TableCell>
-                  <TableCell><Switch checked={l.api_enabled} onCheckedChange={(v) => toggleApi(l, v)} /></TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-2 text-sm"><Switch checked={l.api_enabled} onCheckedChange={(v) => toggleApi(l, v)} /><span>API</span></label>
+                      <label className="flex items-center gap-2 text-sm"><Switch checked={(settings[l.id] as any)?.webhook_enabled ?? false} onCheckedChange={(v) => toggleWebhook(l, v)} /><span>Webhook</span></label>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Input readOnly className="font-mono text-xs h-8 w-64" value={show.has(l.id) ? (l.api_token || "—") : masked(l.api_token)} />
@@ -672,13 +689,13 @@ const AdminLivreurs = () => {
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold">Webhook logs & Driver API logs</h3>
-            <p className="text-sm text-muted-foreground">Showing latest {apiLogs.length} receptions, rejections, polling checks, and provider responses with full details.</p>
+            <p className="text-sm text-muted-foreground">Showing latest {apiLogs.length} receptions, rejections, polling checks, and provider responses with full details. Cleanup retention is measured in days.</p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Input className="h-9 w-64" placeholder="Search order, tracking, status..." value={logSearch} onChange={(e) => setLogSearch(e.target.value)} />
             <Select value={logFilter} onValueChange={setLogFilter}><SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All logs</SelectItem><SelectItem value="webhook">Webhook logs</SelectItem><SelectItem value="driver">Driver API logs</SelectItem></SelectContent></Select>
             <label className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm"><Switch checked={retention.enabled} onCheckedChange={(enabled) => setRetention({ ...retention, enabled })} /> Auto clean</label>
-            <Input type="number" min={1} className="h-9 w-24" value={retention.days} onChange={(e) => setRetention({ ...retention, days: Number(e.target.value) })} />
+            <div className="flex items-center gap-2"><Input type="number" min={1} className="h-9 w-24" value={retention.days} onChange={(e) => setRetention({ ...retention, days: Number(e.target.value) })} /><span className="text-sm text-muted-foreground">days</span></div>
             <Button variant="outline" size="sm" onClick={saveRetention}>Save cleanup</Button>
             <Button variant="outline" size="sm" onClick={load}><RefreshCw className="mr-1 h-4 w-4" /> Refresh</Button>
           </div>
@@ -736,8 +753,8 @@ const AdminLivreurs = () => {
               <div className="flex gap-3">
                 <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div className="space-y-2">
-                  <p>Connect this driver to any delivery provider API. Configure authentication, package creation, status updates, and request limits without editing code.</p>
-                  <p>Tip: start with the provider documentation, then copy each required field into the matching section below.</p>
+                  <p>API and Webhook are independent. API creates external packages. Webhook receives provider notifications. Polling fetches provider status on schedule.</p>
+                  <p>If API and Webhook are both enabled, webhook notifications are logged first, then polling remains responsible for fetching the full current order status.</p>
                 </div>
               </div>
             </div>
@@ -764,6 +781,7 @@ const AdminLivreurs = () => {
               <KeyValueEditor label="Validation rules" help="Input rules such as minimum product length, phone digits, or minimum order value. Values can be plain text, numbers, true/false, or small JSON objects." value={settingsForm.validation_rules} onChange={(value) => setSettingsForm({ ...settingsForm, validation_rules: value })} keyPlaceholder="Order field" valuePlaceholder='Rule, e.g. {"min_alnum":3}' primitiveValues />
               <KeyValueEditor label="Status mapping" help="Left side is the provider status. Right side is the internal status used in this app." value={settingsForm.status_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, status_mapping: value })} keyPlaceholder="Provider status" valuePlaceholder="Internal status" />
               <div><Label>Webhook URL</Label><Input readOnly value={editing ? `${functionsBaseUrl}/livreur-webhook/${editing.id}` : ""} /><FieldHelp>Give this URL to the provider with this driver's API token as a Bearer token.</FieldHelp></div>
+              <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"><span>Enable webhook reception</span><Switch checked={settingsForm.webhook_enabled} onCheckedChange={(v) => setSettingsForm({ ...settingsForm, webhook_enabled: v })} /></label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div><Label>Webhook status field</Label><Input value={settingsForm.webhook_status_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_status_field: e.target.value })} /><FieldHelp>Field name that contains the provider status in the webhook body.</FieldHelp></div>
                 <div><Label>Webhook tracking field</Label><Input value={settingsForm.webhook_tracking_field} onChange={(e) => setSettingsForm({ ...settingsForm, webhook_tracking_field: e.target.value })} /><FieldHelp>Field name that contains the tracking number in the webhook body.</FieldHelp></div>
@@ -775,6 +793,7 @@ const AdminLivreurs = () => {
               </div>
               <KeyValueEditor label="Webhook extra fields" help="Optional values captured from the webhook body for future use. Left side is the saved key, right side is the webhook body path." value={settingsForm.webhook_extra_fields_mapping} onChange={(value) => setSettingsForm({ ...settingsForm, webhook_extra_fields_mapping: value })} keyPlaceholder="Saved key" valuePlaceholder="Webhook path" />
               <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"><span>Webhook updates current status</span><Switch checked={settingsForm.webhook_updates_current_status} onCheckedChange={(v) => setSettingsForm({ ...settingsForm, webhook_updates_current_status: v })} /></label>
+              <FieldHelp>When API and webhook are both enabled, webhook notifications are saved in logs first and polling should fetch the complete current status. When only webhook is enabled, this switch lets the webhook body update the current order status directly.</FieldHelp>
               <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm"><span>Settings enabled</span><Switch checked={settingsForm.is_active} onCheckedChange={(v) => setSettingsForm({ ...settingsForm, is_active: v })} /></label>
             </Card>
             <Card className="p-4 space-y-4">

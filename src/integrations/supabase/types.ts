@@ -309,6 +309,7 @@ export type Database = {
           validation_rules: Json
           webhook_driver_name_field: string
           webhook_driver_phone_field: string
+          webhook_enabled: boolean
           webhook_extra_fields_mapping: Json
           webhook_note_field: string
           webhook_reported_date_field: string
@@ -345,6 +346,7 @@ export type Database = {
           validation_rules?: Json
           webhook_driver_name_field?: string
           webhook_driver_phone_field?: string
+          webhook_enabled?: boolean
           webhook_extra_fields_mapping?: Json
           webhook_note_field?: string
           webhook_reported_date_field?: string
@@ -381,6 +383,7 @@ export type Database = {
           validation_rules?: Json
           webhook_driver_name_field?: string
           webhook_driver_phone_field?: string
+          webhook_enabled?: boolean
           webhook_extra_fields_mapping?: Json
           webhook_note_field?: string
           webhook_reported_date_field?: string

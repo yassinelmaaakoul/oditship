@@ -233,7 +233,8 @@ Deno.serve(async (req) => {
     const trackingNumber = order.tracking_number || `ODiT-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
     const { error } = await admin.from("orders").update({ tracking_number: trackingNumber, status: "Pickup", assigned_livreur_id: livreur.id, hub_id: hubCity.hub_id, api_sync_status: "not_required", api_sync_error: null }).eq("id", order.id);
     if (error) return jsonResponse({ error: error.message }, 500);
-    return jsonResponse({ ok: true, mode: "not_required", message: "External API not required for this driver.", tracking_number: trackingNumber });
+    await logApi(admin, { order_id: order.id, livreur_id: livreur.id, event_type: "create_package", status: "success", message: "Internal tracking generated because driver API is disabled", details: { mode: "internal_tracking", webhook_enabled: legacySettings?.webhook_enabled === true, generated_tracking: trackingNumber } });
+    return jsonResponse({ ok: true, mode: "internal_tracking", message: "External API disabled for this driver; internal tracking generated.", tracking_number: trackingNumber });
   }
 
   let lastEndpoint: JsonRecord | null = null;
