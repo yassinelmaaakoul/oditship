@@ -105,10 +105,11 @@ Deno.serve(async (req) => {
   const tracking = order.external_tracking_number || order.tracking_number;
 
   const currentOrder = order;
-  const visibleDbHistory = removeSystemDuplicates(history ?? []);
-  const seenTimeline = new Set<string>();
-  const mergedHistory = [
-    ...visibleDbHistory.filter((h: any) => !isInternalConfirmed(h.new_status) && !isInternalConfirmed(h.old_status)).map((h: any) => ({
+  // No more deduplication: each saved history row appears as-is. Webhook/polling
+  // functions are now responsible for not inserting rows when status is unchanged.
+  const mergedHistory = (history ?? [])
+    .filter((h: any) => !isInternalConfirmed(h.new_status) && !isInternalConfirmed(h.old_status))
+    .map((h: any) => ({
       source: h.changed_by === order.assigned_livreur_id ? "provider" : "odit",
       status: h.new_status,
       old_status: h.old_status,
@@ -118,15 +119,8 @@ Deno.serve(async (req) => {
       scheduled_date: h.scheduled_date ?? null,
       changed_at: h.changed_at,
       actor: h.changed_by && h.changed_by !== order.assigned_livreur_id ? actors[h.changed_by] ?? null : null,
-    })),
-  ]
-    .sort((a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime())
-    .filter((item: any) => {
-      const key = `${item.status ?? ""}|${item.actor?.username ?? item.actor?.full_name ?? ""}`.toLowerCase();
-      if (seenTimeline.has(key)) return false;
-      seenTimeline.add(key);
-      return true;
-    });
+    }))
+    .sort((a: any, b: any) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime());
 
   return new Response(JSON.stringify({
     order: currentOrder,
