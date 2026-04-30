@@ -222,9 +222,9 @@ Deno.serve(async (req) => {
   const message = getPath(payload, settings?.webhook_note_field || "note") ?? payload.message ?? payload.msg ?? payload.description ?? null;
   const reportedDate = parseDateValue(getPath(payload, settings?.webhook_reported_date_field || "reportedDate"));
   const scheduledDate = parseDateValue(getPath(payload, settings?.webhook_scheduled_date_field || "scheduledDate"));
-  const meta = { note: message, reported_date: reportedDate, scheduled_date: scheduledDate };
   const driverName = getPath(payload, settings?.webhook_driver_name_field || "transport.currentDriverName") ?? null;
   const driverPhone = getPath(payload, settings?.webhook_driver_phone_field || "transport.currentDriverPhone") ?? null;
+  const meta = { note: message, reported_date: reportedDate, scheduled_date: scheduledDate, driver_name: driverName, driver_phone: driverPhone };
   const capturedFields = buildCapturedFields(payload, settings?.webhook_extra_fields_mapping ?? {});
 
   if (!tracking || !String(rawStatus ?? "").trim()) {
