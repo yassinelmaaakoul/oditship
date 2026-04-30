@@ -58,6 +58,14 @@ const AdminColis = () => {
       setPreviewSettings(normalizeColisPreviewSettings(settings.data?.value));
       setLoading(false);
     });
+    const channel = supabase.channel("admin-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+      setOrders((current) => {
+        if (payload.eventType === "DELETE") return current.filter((order) => order.id !== (payload.old as Order).id);
+        const next = payload.new as Order;
+        return current.some((order) => order.id === next.id) ? current.map((order) => order.id === next.id ? { ...order, ...next } : order) : [next, ...current];
+      });
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const vendeurMap = useMemo(() => {
@@ -179,7 +187,7 @@ const AdminColis = () => {
               {expandedOrderId === o.id && (
                 <TableRow>
                   <TableCell colSpan={7} className="bg-muted/20 p-0">
-                    <OrderDetailsPanel order={o} previewSettings={previewSettings} />
+                    <OrderDetailsPanel order={o} onOrderSynced={(updated) => setOrders((current) => current.map((order) => order.id === updated.id ? { ...order, ...updated } : order))} previewSettings={previewSettings} />
                   </TableCell>
                 </TableRow>
               )}
