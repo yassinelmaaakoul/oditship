@@ -148,12 +148,18 @@ async function findOrderByTracking(admin: any, livreurId: string, tracking: stri
 }
 
 async function updateOrderStatusFromProvider(admin: any, order: any, mappedStatus: string, livreurId: string, meta: Record<string, unknown>, updateCurrentStatus = true) {
-  const orderPatch = {
+  const orderPatch: Record<string, unknown> = {
     ...(updateCurrentStatus ? { status: mappedStatus } : {}),
     status_note: meta.note ?? null,
     postponed_date: meta.reported_date ?? null,
     scheduled_date: meta.scheduled_date ?? null,
   };
+  if (meta.driver_name !== undefined && meta.driver_name !== null && String(meta.driver_name).trim() !== "") {
+    orderPatch.driver_name = String(meta.driver_name);
+  }
+  if (meta.driver_phone !== undefined && meta.driver_phone !== null && String(meta.driver_phone).trim() !== "") {
+    orderPatch.driver_phone = String(meta.driver_phone);
+  }
   const { error: updateError } = await admin.from("orders").update(orderPatch).eq("id", order.id);
   if (updateError) return updateError;
   const { error: historyError } = await admin.from("order_status_history").insert({
