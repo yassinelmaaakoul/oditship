@@ -519,7 +519,46 @@ const AdminLivreurs = () => {
     is_active: true,
   });
 
-  const load = async () => {
+  // Detected provider-side field paths from recent logs of the editing livreur,
+  // split by source so the UI can suggest the right keys for webhook vs polling.
+  const detectedProviderFields = useMemo(() => {
+    const webhookSet = new Set<string>();
+    const pollingSet = new Set<string>();
+    const createPackageSet = new Set<string>();
+    if (!editing) return { webhook: [] as string[], polling: [] as string[], createPackage: [] as string[] };
+    for (const log of apiLogs) {
+      if (log.livreur_id !== editing.id) continue;
+      const details = (log.details ?? {}) as any;
+      const receptionPayload = details?.reception?.payload ?? details?.reception?.body ?? null;
+      const sendingResponse = details?.sending?.response_body ?? details?.sending?.body ?? null;
+      if (log.event_type === "webhook_status" && receptionPayload) {
+        collectPaths(receptionPayload, "", webhookSet);
+      } else if (log.event_type === "polling_status") {
+        if (receptionPayload) collectPaths(receptionPayload, "", pollingSet);
+        if (sendingResponse) collectPaths(sendingResponse, "", pollingSet);
+      } else {
+        if (sendingResponse) collectPaths(sendingResponse, "", createPackageSet);
+        if (receptionPayload) collectPaths(receptionPayload, "", createPackageSet);
+      }
+    }
+    const sortAlpha = (a: string, b: string) => a.localeCompare(b);
+    const configuredWebhookPaths = [
+      settingsForm?.webhook_tracking_field, settingsForm?.webhook_status_field,
+      settingsForm?.webhook_note_field, settingsForm?.webhook_reported_date_field,
+      settingsForm?.webhook_scheduled_date_field, settingsForm?.webhook_driver_name_field,
+      settingsForm?.webhook_driver_phone_field,
+    ].filter(Boolean) as string[];
+    const configuredPollingPaths = [
+      settingsForm?.polling_tracking_field, settingsForm?.polling_status_field,
+      settingsForm?.polling_message_field, settingsForm?.polling_reported_date_field,
+      settingsForm?.polling_scheduled_date_field,
+    ].filter(Boolean) as string[];
+    return {
+      webhook: Array.from(new Set([...webhookSet, ...configuredWebhookPaths, ...COMMON_WEBHOOK_PATHS])).sort(sortAlpha),
+      polling: Array.from(new Set([...pollingSet, ...configuredPollingPaths, ...COMMON_POLLING_PATHS])).sort(sortAlpha),
+      createPackage: Array.from(createPackageSet).sort(sortAlpha),
+    };
+  }, [editing, apiLogs, settingsForm]);
     const [p, h, hl, s, logs, retentionSetting] = await Promise.all([
       db.from("profiles").select("id, username, full_name, api_enabled, api_token, authentication_config, create_package_config").eq("role", "livreur").order("username"),
       supabase.from("hubs").select("id, name").order("name"),
