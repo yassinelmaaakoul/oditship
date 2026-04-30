@@ -749,6 +749,7 @@ const AdminLivreurs = () => {
         webhook_scheduled_date_field: settingsForm.webhook_scheduled_date_field.trim() || "scheduledDate",
         webhook_extra_fields_mapping: parseJson("Webhook extra fields", settingsForm.webhook_extra_fields_mapping),
         webhook_order_fields_mapping: parseJson("Webhook order fields", (settingsForm as any).webhook_order_fields_mapping),
+        webhook_actor_field: ((settingsForm as any).webhook_actor_field || "").trim() || "lastmsg",
         polling_enabled: settingsForm.polling_enabled,
         polling_interval_minutes: Number(settingsForm.polling_interval_minutes) || 15,
         polling_status_url: settingsForm.polling_status_url.trim() || null,
