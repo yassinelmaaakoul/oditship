@@ -660,6 +660,7 @@ const AdminLivreurs = () => {
       webhook_scheduled_date_field: activeSettings.webhook_scheduled_date_field || "scheduledDate",
       webhook_extra_fields_mapping: formatJson(activeSettings.webhook_extra_fields_mapping),
       webhook_order_fields_mapping: formatJson((activeSettings as any).webhook_order_fields_mapping ?? {}),
+      webhook_actor_field: (activeSettings as any).webhook_actor_field || "lastmsg",
       polling_enabled: activeSettings.polling_enabled ?? false,
       polling_interval_minutes: activeSettings.polling_interval_minutes ?? 15,
       polling_status_url: activeSettings.polling_status_url ?? "",
