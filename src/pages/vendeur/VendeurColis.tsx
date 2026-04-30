@@ -92,6 +92,14 @@ const VendeurColis = () => {
       (supabase as any).from("app_settings").select("value").eq("key", COLIS_PREVIEW_SETTING_KEY).maybeSingle()
         .then(({ data }: any) => setPreviewSettings(normalizeColisPreviewSettings(data?.value)));
     }
+    const channel = supabase.channel("vendeur-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+      setOrders((current) => {
+        if (payload.eventType === "DELETE") return current.filter((order) => order.id !== (payload.old as Order).id);
+        const next = payload.new as Order;
+        return current.some((order) => order.id === next.id) ? current.map((order) => order.id === next.id ? { ...order, ...next } : order) : [next, ...current];
+      });
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [user, isAgent, colisScope]);
 
   const rowData = (o: Order) => ({ ...o, tracking: o.external_tracking_number || o.tracking_number || `ODiT-${o.id}` });
