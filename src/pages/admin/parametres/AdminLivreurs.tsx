@@ -676,6 +676,7 @@ const AdminLivreurs = () => {
       polling_driver_phone_field: (activeSettings as any).polling_driver_phone_field || "transport.currentDriverPhone",
       polling_extra_fields_mapping: formatJson((activeSettings as any).polling_extra_fields_mapping ?? {}),
       polling_order_fields_mapping: formatJson((activeSettings as any).polling_order_fields_mapping ?? {}),
+      polling_actor_field: (activeSettings as any).polling_actor_field || "lastmsg",
       rate_limit_per_second: activeSettings.rate_limit_per_second ?? 5,
       is_active: activeSettings.is_active,
     });
