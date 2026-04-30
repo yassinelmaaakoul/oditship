@@ -129,6 +129,7 @@ const defaultSettings = (livreurId: string): LivreurApiSettings => ({
   webhook_scheduled_date_field: "scheduledDate",
   webhook_extra_fields_mapping: {},
   webhook_order_fields_mapping: {},
+  webhook_actor_field: "lastmsg",
   polling_enabled: false,
   polling_interval_minutes: 15,
   polling_status_url: "",
