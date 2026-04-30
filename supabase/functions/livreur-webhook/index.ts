@@ -81,6 +81,7 @@ function webhookEndpointInfo(req: Request, livreurId: string | null, settings: a
     scheduled_date_field: settings?.webhook_scheduled_date_field || "scheduledDate",
     driver_name_field: settings?.webhook_driver_name_field || "transport.currentDriverName",
     driver_phone_field: settings?.webhook_driver_phone_field || "transport.currentDriverPhone",
+    actor_field: settings?.webhook_actor_field || "lastmsg",
     extra_fields_mapping: settings?.webhook_extra_fields_mapping ?? {},
     livreur_id: livreurId,
   };
