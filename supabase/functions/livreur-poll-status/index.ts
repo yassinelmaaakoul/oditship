@@ -17,6 +17,37 @@ function getPath(obj: any, path?: string | null) {
   return path.split(".").reduce((acc: any, key) => acc?.[key], obj);
 }
 
+// Resolve a "smart" path used for the activity actor:
+//   - "lastmsg"            → last entry's `msg` from any array named history/timeline/events/logs
+//   - "history.last.msg"   → last entry's `msg` from `history` array (or any array name)
+//   - any other dotted path → standard getPath()
+function resolveSmartPath(body: any, path?: string | null) {
+  if (!path) return undefined;
+  const trimmed = String(path).trim();
+  if (!trimmed) return undefined;
+  const findHistoryArray = (obj: any): any[] | null => {
+    if (!obj || typeof obj !== "object") return null;
+    for (const key of ["history", "timeline", "events", "logs", "statusHistory"]) {
+      if (Array.isArray(obj[key]) && obj[key].length > 0) return obj[key];
+    }
+    return null;
+  };
+  if (trimmed.toLowerCase() === "lastmsg") {
+    const arr = findHistoryArray(body);
+    if (!arr) return undefined;
+    const last = arr[arr.length - 1];
+    return last?.msg ?? last?.message ?? last?.note ?? last?.user ?? null;
+  }
+  const lastMatch = trimmed.match(/^([a-zA-Z0-9_]+)\.last\.(.+)$/);
+  if (lastMatch) {
+    const [, arrName, rest] = lastMatch;
+    const arr = (body && typeof body === "object") ? (body as any)[arrName] : null;
+    if (!Array.isArray(arr) || arr.length === 0) return undefined;
+    return getPath(arr[arr.length - 1], rest);
+  }
+  return getPath(body, trimmed);
+}
+
 function setPath(obj: Record<string, any>, path: string, value: unknown) {
   const keys = path.split(".");
   let cur = obj;
