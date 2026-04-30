@@ -10,14 +10,6 @@ function isInternalConfirmed(status?: string | null) {
   return normalized === "confirmed";
 }
 
-function removeSystemDuplicates(history: any[]) {
-  const providerKeys = new Set(
-    (history ?? [])
-      .filter((h: any) => h.changed_by)
-      .map((h: any) => `${h.old_status ?? ""}|${h.new_status ?? ""}`),
-  );
-  return (history ?? []).filter((h: any) => h.changed_by || !providerKeys.has(`${h.old_status ?? ""}|${h.new_status ?? ""}`));
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
