@@ -100,7 +100,9 @@ const AdminColisPreview = () => {
         </div>)}
       </div>}
     </Card>
-  </div>;
+    </div>
+    </TabsContent>
+  </Tabs>;
 };
 
 export default AdminColisPreview;
