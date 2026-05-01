@@ -46,7 +46,14 @@ const AdminColisPreview = () => {
     if (error) toast.error(error.message); else toast.success("Colis preview saved");
   };
 
-  return <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_520px]">
+  return <Tabs defaultValue="classic" className="space-y-4">
+    <TabsList>
+      <TabsTrigger value="classic">Classic</TabsTrigger>
+      <TabsTrigger value="canvas">Canvas</TabsTrigger>
+    </TabsList>
+    <TabsContent value="canvas"><AdminColisPreviewCanvas /></TabsContent>
+    <TabsContent value="classic">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_520px]">
     <Card className="p-4">
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div><h3 className="font-semibold">Info Colis</h3><p className="text-sm text-muted-foreground">Live editor for the order information layout shown across colis screens.</p></div>
