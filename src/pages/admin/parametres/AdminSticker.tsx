@@ -152,7 +152,17 @@ const AdminSticker = () => {
       acc[field.value] = String(resolveStickerValue(sampleOrder, field.value));
       return acc;
     }, {});
-    const replaceVars = (value = "") => value.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_match, key) => vars[key] ?? "");
+    const tracking = String(resolveStickerValue(sampleOrder, "tracking"));
+    const qrPlaceholder = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;border:1px solid #111;font-size:9px;font-weight:700;background:repeating-linear-gradient(45deg,#000 0 2px,#fff 2px 4px);color:#fff;text-shadow:0 0 2px #000;">QR</div>`;
+    const barcodeText = `*${tracking}*`;
+    const replaceTriple = (value = "") => value
+      .replace(/{{{\s*qr\s*}}}/g, qrPlaceholder)
+      .replace(/{{{\s*barcode\s*}}}/g, barcodeText);
+    const replaceVars = (value = "") => replaceTriple(value).replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_match, key) => {
+      if (key === "qr_dataurl") return "";
+      if (key === "barcode_text") return barcodeText;
+      return vars[key] ?? "";
+    });
     const stripUnsafe = (value: string) => value.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "").replace(/\son\w+\s*=\s*(['"]).*?\1/gi, "");
     return { __html: `<style>${stripUnsafe(replaceVars(el.css || ""))}</style>${stripUnsafe(replaceVars(el.html || ""))}` };
   };
