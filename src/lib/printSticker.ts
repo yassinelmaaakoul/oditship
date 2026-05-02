@@ -34,7 +34,7 @@ export type StickerSystemField =
   | "product_name" | "order_value" | "open_package" | "comment" | "created_at" | "order_id"
   | "hub"
   | "seller_username" | "seller_full_name" | "seller_company_name" | "seller_phone" | "seller_cin"
-  | "seller_affiliation_code" | "seller_bank_account_name" | "seller_bank_account_number";
+  | "seller_affiliation_code" | "seller_bank_account_name" | "seller_bank_account_number" | "seller_city";
 
 export interface StickerElement {
   id: string;
