@@ -167,6 +167,7 @@ export const resolveStickerValue = (order: StickerOrder, field?: StickerSystemFi
     case "seller_affiliation_code": return order.seller_affiliation_code || "";
     case "seller_bank_account_name": return order.seller_bank_account_name || "";
     case "seller_bank_account_number": return order.seller_bank_account_number || "";
+    case "seller_city": return order.seller_city || "";
     default: return "";
   }
 };
