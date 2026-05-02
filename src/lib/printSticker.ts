@@ -145,39 +145,39 @@ const oditFinalHtml = `<div class="odit-label-final">
   </table>
 </div>`;
 
-const oditFinalCss = `.odit-label-final * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
-.odit-label-final { width:100%; height:100%; padding:5px; font-family: Arial, Helvetica, sans-serif; display:flex; flex-direction:column; overflow:hidden; color:#000; background:#fff; }
+const oditFinalCss = `.odit-label-final * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.odit-label-final { width:100%; height:100%; padding:2mm; font-family: Arial, Helvetica, sans-serif; display:flex; flex-direction:column; overflow:hidden; color:#000; background:#fff; }
 .odit-label-final .w-100 { width:100%; border-collapse:collapse; }
 .odit-label-final .layout-table { width:100%; border-collapse:collapse; table-layout:fixed; }
-.odit-label-final .data-table { width:100%; border-collapse:collapse; table-layout:fixed; border:2px solid #000; }
-.odit-label-final .data-table td { border:1px solid #000; padding:3px 6px; font-size:11px; vertical-align:middle; }
-.odit-label-final .header-section { border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:6px; }
-.odit-label-final .brand-title { font-size:30px; font-weight:900; line-height:0.8; }
-.odit-label-final .brand-sub { font-size:11px; font-weight:bold; }
-.odit-label-final .date-text { font-size:11px; font-weight:bold; }
-.odit-label-final .qr-container { width:50px; height:50px; border:1px solid #000; float:right; overflow:hidden; }
+.odit-label-final .data-table { width:100%; border-collapse:collapse; table-layout:fixed; border:1.5px solid #000; }
+.odit-label-final .data-table td { border:1px solid #000; padding:2px 5px; font-size:10px; vertical-align:middle; }
+.odit-label-final .header-section { border-bottom:1.5px solid #000; padding-bottom:3px; margin-bottom:4px; }
+.odit-label-final .brand-title { font-size:26px; font-weight:900; line-height:0.85; }
+.odit-label-final .brand-sub { font-size:10px; font-weight:bold; }
+.odit-label-final .date-text { font-size:10px; font-weight:bold; }
+.odit-label-final .qr-container { width:14mm; height:14mm; border:1px solid #000; float:right; overflow:hidden; }
 .odit-label-final .col-label { width:30%; font-weight:bold; background-color:#f2f2f2; }
 .odit-label-final .col-value { width:70%; font-weight:bold; }
-.odit-label-final .client-name { font-size:14px; text-transform:uppercase; }
-.odit-label-final .city-text { font-size:16px; text-transform:uppercase; font-weight:900; }
-.odit-label-final .address-box { height:26px; line-height:1.1; overflow:hidden; }
+.odit-label-final .client-name { font-size:13px; text-transform:uppercase; }
+.odit-label-final .city-text { font-size:14px; text-transform:uppercase; font-weight:900; }
+.odit-label-final .address-box { height:22px; line-height:1.1; overflow:hidden; }
 .odit-label-final .nowrap { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.odit-label-final .small-header { font-size:9px; font-weight:bold; text-decoration:underline; margin-bottom:2px; }
-.odit-label-final .price-huge { font-size:24px; font-weight:900; }
-.odit-label-final .hub-text { font-size:16px; font-weight:900; text-transform:uppercase; }
-.odit-label-final .barcode-area { text-align:center; margin:5px 0; }
-.odit-label-final .tracking-id { font-size:14px; font-weight:bold; letter-spacing:2px; }
-.odit-label-final .barcode-sim { font-family:'Libre Barcode 39', monospace; font-size:45px; line-height:1; height:38px; overflow:hidden; }
-.odit-label-final .seller-box { border:1px solid #000; padding:4px; font-size:10px; margin-top:auto; margin-bottom:4px; background-color:#fafafa; }
-.odit-label-final .footer-section { border-top:1px solid #000; padding-top:4px; }
-.odit-label-final .opening-status { border:2px solid #000; padding:3px 8px; font-size:12px; font-weight:900; display:inline-block; }
-.odit-label-final .arabic-tagline { font-size:10px; font-weight:bold; }
-.odit-label-final .site-link { font-size:11px; font-weight:900; }`;
+.odit-label-final .small-header { font-size:8px; font-weight:bold; text-decoration:underline; margin-bottom:2px; }
+.odit-label-final .price-huge { font-size:22px; font-weight:900; }
+.odit-label-final .hub-text { font-size:14px; font-weight:900; text-transform:uppercase; }
+.odit-label-final .barcode-area { text-align:center; margin:3px 0; }
+.odit-label-final .tracking-id { font-size:13px; font-weight:bold; letter-spacing:2px; }
+.odit-label-final .barcode-sim { font-family:'Libre Barcode 39', monospace; font-size:40px; line-height:1; height:34px; overflow:hidden; }
+.odit-label-final .seller-box { border:1px solid #000; padding:3px; font-size:9px; margin-top:auto; margin-bottom:3px; background-color:#fafafa; }
+.odit-label-final .footer-section { border-top:1px solid #000; padding-top:3px; }
+.odit-label-final .opening-status { border:1.5px solid #000; padding:2px 6px; font-size:11px; font-weight:900; display:inline-block; }
+.odit-label-final .arabic-tagline { font-size:9px; font-weight:bold; }
+.odit-label-final .site-link { font-size:10px; font-weight:900; }`;
 
 export const defaultStickerTemplate: StickerTemplate = {
   version: 2,
   sizeMm: 100,
-  marginMm: 1,
+  marginMm: 0,
   showFrame: false,
   elements: [
     {
@@ -190,8 +190,8 @@ export const defaultStickerTemplate: StickerTemplate = {
       imageData: "",
       x: 0,
       y: 0,
-      w: 98,
-      h: 98,
+      w: 100,
+      h: 100,
       fontSize: 4,
       fontWeight: 400,
       align: "left",
@@ -323,9 +323,10 @@ const withSellerProfile = async (order: StickerOrder): Promise<StickerOrder> => 
 const stickerStyles = (template: StickerTemplate) => `
 @page { size: ${template.sizeMm}mm ${template.sizeMm}mm; margin: ${template.marginMm}mm; }
 * { box-sizing: border-box; }
-body { font-family: Arial, Helvetica, sans-serif; margin:0; color:#070707; background:#fff; }
-.sticker { position:relative; width:${Math.max(20, template.sizeMm - template.marginMm * 2)}mm; height:${Math.max(20, template.sizeMm - template.marginMm * 2)}mm; page-break-after:always; overflow:hidden; border:${template.showFrame ? ".35mm solid #111" : "0"}; }
-.sticker:last-child { page-break-after:auto; }
+html, body { margin:0; padding:0; }
+body { font-family: Arial, Helvetica, sans-serif; color:#070707; background:#fff; }
+.sticker { position:relative; width:${Math.max(20, template.sizeMm - template.marginMm * 2)}mm; height:${Math.max(20, template.sizeMm - template.marginMm * 2)}mm; overflow:hidden; border:${template.showFrame ? ".35mm solid #111" : "0"}; page-break-inside:avoid; break-inside:avoid; }
+.sticker + .sticker { page-break-before:always; break-before:page; }
 .el { position:absolute; overflow:hidden; line-height:1.05; word-break:break-word; display:flex; align-items:center; padding:.5mm; transform-origin:center; }
 .el.center { justify-content:center; } .el.right { justify-content:flex-end; } .el.left { justify-content:flex-start; }
 .el-line { padding:0; border-top:.45mm solid #111 !important; height:0 !important; min-height:0; }
