@@ -239,7 +239,7 @@ const renderElement = async (order: StickerOrder, el: StickerElement) => {
     return `<div class="${classes}" style="${elementCss(el)}"><img src="${qr}" alt="QR"></div>`;
   }
   if (el.type === "barcode") return `<div class="${classes}" style="${elementCss(el)}">*${esc(tracking)}*</div>`;
-  if (el.type === "html") return `<div class="${classes}" style="${elementCss(el)}">${renderCustomHtml(order, el)}</div>`;
+  if (el.type === "html") return `<div class="${classes}" style="${elementCss(el)}">${await renderCustomHtml(order, el)}</div>`;
   const value = el.type === "field" ? resolveStickerValue(order, el.field) : el.text;
   return `<div class="${classes}" style="${elementCss(el)}">${esc(value)}</div>`;
 };
