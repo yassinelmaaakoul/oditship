@@ -87,6 +87,7 @@ export const stickerSystemFields: { value: StickerSystemField; label: string }[]
   { value: "seller_affiliation_code", label: "Seller affiliation code" },
   { value: "seller_bank_account_name", label: "Seller bank account name" },
   { value: "seller_bank_account_number", label: "Seller bank account number" },
+  { value: "seller_city", label: "Seller city" },
 ];
 
 export const defaultStickerTemplate: StickerTemplate = {
