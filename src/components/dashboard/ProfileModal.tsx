@@ -22,6 +22,7 @@ export const ProfileModal = ({ open, onOpenChange }: Props) => {
         username: profile?.username ?? "",
         full_name: profile?.full_name ?? "",
         phone: profile?.phone ?? "",
+        city: profile?.city ?? "",
         email: user?.email ?? "",
         password: "",
       });
