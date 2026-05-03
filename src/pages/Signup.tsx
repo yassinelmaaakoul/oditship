@@ -134,6 +134,10 @@ const Signup = () => {
                   <Input id="aff" value={form.affiliation_code} onChange={(e) => update("affiliation_code", e.target.value)} className="mt-1.5" />
                 </div>
               </div>
+              <div>
+                <Label htmlFor="city">Ville de Ramassage *</Label>
+                <Input id="city" value={form.city} onChange={(e) => update("city", e.target.value)} required className="mt-1.5" />
+              </div>
               <div className="flex items-start gap-2 pt-2">
                 <Checkbox id="terms" checked={accepted} onCheckedChange={(v) => setAccepted(v === true)} />
                 <Label htmlFor="terms" className="text-sm font-normal leading-snug">
