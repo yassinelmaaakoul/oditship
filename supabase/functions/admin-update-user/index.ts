@@ -100,6 +100,7 @@ Deno.serve(async (req) => {
   if (body.full_name !== undefined) profileUpdates.full_name = body.full_name;
   if (body.phone !== undefined) profileUpdates.phone = body.phone;
   if (body.cin !== undefined) profileUpdates.cin = body.cin;
+  if (body.city !== undefined) profileUpdates.city = body.city;
   if (body.is_active !== undefined) profileUpdates.is_active = body.is_active;
   if (body.role && isAdmin) profileUpdates.role = body.role;
   if (body.bank_account_name !== undefined && isAdmin) profileUpdates.bank_account_name = body.bank_account_name;
