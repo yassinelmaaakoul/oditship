@@ -55,6 +55,7 @@ const Signup = () => {
             full_name: form.full_name,
             phone: form.phone,
             cin: form.cin,
+            city: form.city,
             affiliation_code: form.affiliation_code || null,
             role: "vendeur",
           },
