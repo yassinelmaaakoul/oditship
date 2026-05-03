@@ -359,7 +359,19 @@ const renderSticker = async (order: StickerOrder, template: StickerTemplate) => 
 const openPrintWindow = (title: string, body: string, template: StickerTemplate) => {
   const win = window.open("", "_blank", "width=620,height=620");
   if (!win) return;
-  win.document.write(`<!doctype html><html><head><title>${esc(title)}</title><style>${stickerStyles(template)}</style><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap"></head><body>${body}<script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`);
+  const printScript = `
+    (function(){
+      var doPrint = function(){ try { window.focus(); window.print(); } catch(e){} };
+      var ready = function(){
+        var p = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+        p.then(function(){ setTimeout(doPrint, 250); }).catch(function(){ setTimeout(doPrint, 600); });
+      };
+      if (document.readyState === 'complete') ready();
+      else window.addEventListener('load', ready);
+    })();
+  `;
+  win.document.open();
+  win.document.write(`<!doctype html><html><head><title>${esc(title)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap"><style>${stickerStyles(template)}</style></head><body>${body}<script>${printScript}<\/script></body></html>`);
   win.document.close();
 };
 
