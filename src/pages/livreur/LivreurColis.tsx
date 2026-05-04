@@ -8,15 +8,20 @@ import { OrderDetailsPanel } from "@/components/dashboard/OrderDetailsPanel";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Printer } from "lucide-react";
 import { printSticker } from "@/lib/printSticker";
+import { COLIS_PAGE_PRESET_KEY, defaultColisPagePreset, normalizeColisPagePreset, type ColisPagePreset } from "@/lib/colisPagePreset";
+import { ColisCanvasPage } from "@/components/dashboard/ColisCanvasPage";
 
 const LivreurColis = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+  const [pagePreset, setPagePreset] = useState<ColisPagePreset>(defaultColisPagePreset);
 
   useEffect(() => {
     supabase.from("orders").select("*").order("created_at", { ascending: false })
       .then(({ data }) => { setOrders(data ?? []); setLoading(false); });
+    (supabase as any).from("app_settings").select("value").eq("key", COLIS_PAGE_PRESET_KEY).maybeSingle()
+      .then(({ data }: any) => setPagePreset(normalizeColisPagePreset(data?.value)));
     const channel = supabase.channel("livreur-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
       setOrders((current) => {
         if (payload.eventType === "DELETE") return current.filter((order) => order.id !== (payload.old as any).id);
@@ -26,6 +31,24 @@ const LivreurColis = () => {
     }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  if (pagePreset.enabled && pagePreset.appliesTo.livreur) {
+    return (
+      <ColisCanvasPage
+        preset={pagePreset}
+        title="Mes colis"
+        orders={orders as any}
+        loading={loading}
+        emptyMessage="Aucun colis assigné"
+        actions={{
+          isDetailsOpen: (id) => expandedOrderId === id,
+          onToggleDetails: (id) => setExpandedOrderId(expandedOrderId === id ? null : id),
+          onPrintSticker: (o) => printSticker(o as any),
+        }}
+        detailsRenderer={(o) => <OrderDetailsPanel order={o as any} />}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">

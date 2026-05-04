@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AdminColisPreviewCanvas from "./AdminColisPreviewCanvas";
+import AdminColisPagePreset from "./AdminColisPagePreset";
 import { COLIS_PREVIEW_SETTING_KEY, colisPreviewFieldOptions, colisSectionStyle, defaultColisPreviewSettings, normalizeColisPreviewSettings, renderColisTemplate, sanitizeColisHtml, sortedVisibleFields, type ColisPreviewLocation, type ColisPreviewSettings } from "@/lib/colisPreview";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
@@ -46,11 +47,13 @@ const AdminColisPreview = () => {
     if (error) toast.error(error.message); else toast.success("Colis preview saved");
   };
 
-  return <Tabs defaultValue="classic" className="space-y-4">
+  return <Tabs defaultValue="page" className="space-y-4">
     <TabsList>
+      <TabsTrigger value="page">Page template</TabsTrigger>
       <TabsTrigger value="classic">Classic</TabsTrigger>
-      <TabsTrigger value="canvas">Canvas</TabsTrigger>
+      <TabsTrigger value="canvas">Canvas (per-element)</TabsTrigger>
     </TabsList>
+    <TabsContent value="page"><AdminColisPagePreset /></TabsContent>
     <TabsContent value="canvas"><AdminColisPreviewCanvas /></TabsContent>
     <TabsContent value="classic">
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_520px]">

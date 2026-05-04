@@ -12,6 +12,8 @@ import { ChevronDown, Printer, Search } from "lucide-react";
 import { printSticker } from "@/lib/printSticker";
 import { cn } from "@/lib/utils";
 import { COLIS_PREVIEW_SETTING_KEY, colisSectionStyle, defaultColisPreviewSettings, getColisPreviewValue, normalizeColisPreviewSettings, renderColisTemplate, sanitizeColisHtml, sortedVisibleFields, type ColisPreviewSettings } from "@/lib/colisPreview";
+import { COLIS_PAGE_PRESET_KEY, defaultColisPagePreset, normalizeColisPagePreset, type ColisPagePreset } from "@/lib/colisPagePreset";
+import { ColisCanvasPage } from "@/components/dashboard/ColisCanvasPage";
 
 interface Order {
   id: number;
@@ -46,16 +48,19 @@ const AdminColis = () => {
   const [dateTo, setDateTo] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [previewSettings, setPreviewSettings] = useState<ColisPreviewSettings>(defaultColisPreviewSettings);
+  const [pagePreset, setPagePreset] = useState<ColisPagePreset>(defaultColisPagePreset);
 
   useEffect(() => {
     Promise.all([
       supabase.from("orders").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, username, full_name").eq("role", "vendeur").order("username"),
       (supabase as any).from("app_settings").select("value").eq("key", COLIS_PREVIEW_SETTING_KEY).maybeSingle(),
-    ]).then(([o, v, settings]) => {
+      (supabase as any).from("app_settings").select("value").eq("key", COLIS_PAGE_PRESET_KEY).maybeSingle(),
+    ]).then(([o, v, settings, page]) => {
       setOrders((o.data ?? []) as Order[]);
       setVendeurs((v.data ?? []) as Vendeur[]);
       setPreviewSettings(normalizeColisPreviewSettings(settings.data?.value));
+      setPagePreset(normalizeColisPagePreset((page as any).data?.value));
       setLoading(false);
     });
     const channel = supabase.channel("admin-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
@@ -107,6 +112,27 @@ const AdminColis = () => {
       <div className="flex flex-wrap items-center gap-1.5">{sortedVisibleFields(mainPreview, "meta").map((field) => { const value = getColisPreviewValue(data, field.key); return value ? <span key={field.key} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">{value}</span> : null; })}</div>
     </div>;
   };
+
+  if (pagePreset.enabled && pagePreset.appliesTo.admin) {
+    return (
+      <ColisCanvasPage
+        preset={pagePreset}
+        title="Toutes les commandes"
+        orders={filtered as any}
+        loading={loading}
+        vendeurMap={vendeurMap}
+        actions={{
+          selectable: false,
+          isDetailsOpen: (id) => expandedOrderId === id,
+          onToggleDetails: (id) => setExpandedOrderId(expandedOrderId === id ? null : id),
+          onPrintSticker: (o) => printSticker(o as any),
+        }}
+        detailsRenderer={(o) => (
+          <OrderDetailsPanel order={o as any} onOrderSynced={(updated) => setOrders((current) => current.map((order) => order.id === updated.id ? { ...order, ...updated } : order))} previewSettings={previewSettings} />
+        )}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
