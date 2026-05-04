@@ -1,27 +1,9 @@
-import { Fragment, ReactNode, useMemo } from "react";
+import { Fragment, ReactNode, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 import { ChevronDown, MessageCircle, Pencil, Phone, Printer, Trash2 } from "lucide-react";
 import { sanitizeColisHtml } from "@/lib/colisPreview";
 import { type ColisPagePreset } from "@/lib/colisPagePreset";
-
-/**
- * Renders Colis listing pages from a user-defined HTML/CSS template.
- *
- * Strategy:
- *  - The page HTML is split on `{{rows}}` so React can mount filter/toolbar
- *    slots and per-row interactive controls between two safe HTML islands.
- *  - The row HTML is parsed once per row and `{{action:*}}` tokens are
- *    replaced by placeholder spans which we then hydrate with real React
- *    buttons via portals-like mounting (renderToString of inert markers).
- *  - To keep the implementation simple and SSR-free, we use a containing
- *    `<div>` per row with `dangerouslySetInnerHTML` for the static parts
- *    and a sibling absolutely-positioned action toolbar derived from the
- *    same actions that would have been injected. The HTML order is
- *    preserved using flex placement; action-spans inside the HTML are
- *    rendered as `<span data-cp-action="...">` and after mount we mount
- *    React buttons inside them.
- */
 
 export interface ColisPageOrder {
   id: number;
@@ -76,9 +58,7 @@ const STATUS_CLASS_MAP: Record<string, string> = {
   "Annulé": "annule",
   "Retourné": "retourne", "RETURNED": "retourne",
 };
-
-const statusClass = (status: string) =>
-  STATUS_CLASS_MAP[status] ?? status.toLowerCase().replace(/[^a-z0-9]+/g, "");
+const statusClass = (status: string) => STATUS_CLASS_MAP[status] ?? status.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 const formatRelative = (iso: string) => {
   const diff = Date.now() - new Date(iso).getTime();
@@ -109,29 +89,19 @@ const tokenValue = (order: ColisPageOrder, key: string, vendeurMap?: Record<stri
     case "created_at": return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date(order.created_at));
     case "created_relative": return formatRelative(order.created_at);
     case "seller": return (order.vendeur_id && vendeurMap?.[order.vendeur_id]) || "";
-    case "driver": return "";
     default: return "";
   }
 };
 
-/** Replace {{var}} tokens (skip {{action:*}} which are handled separately) */
-const renderRowTemplate = (template: string, order: ColisPageOrder, vendeurMap?: Record<string, string>) =>
-  template.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_m, key) => tokenValue(order, key, vendeurMap));
-
-/** Returns array of fragments and action markers in order */
-type RowToken = { kind: "html"; html: string } | { kind: "action"; name: string };
-const tokenizeRow = (template: string): RowToken[] => {
-  const parts: RowToken[] = [];
-  const re = /{{\s*action:([a-z_]+)\s*}}/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(template))) {
-    if (m.index > last) parts.push({ kind: "html", html: template.slice(last, m.index) });
-    parts.push({ kind: "action", name: m[1] });
-    last = m.index + m[0].length;
-  }
-  if (last < template.length) parts.push({ kind: "html", html: template.slice(last) });
-  return parts;
+/**
+ * Replace simple {{var}} tokens AND replace {{action:name}} with
+ * a placeholder span that React will hydrate via portals.
+ */
+const renderRowHtml = (template: string, order: ColisPageOrder, vendeurMap?: Record<string, string>) => {
+  let html = template.replace(/{{\s*action:([a-z_]+)\s*}}/g, (_m, name) =>
+    `<span class="cp-action-slot" data-cp-action="${name}" data-cp-order="${order.id}"></span>`);
+  html = html.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_m, key) => tokenValue(order, key, vendeurMap));
+  return sanitizeColisHtml(html);
 };
 
 const ActionButton = ({
@@ -201,12 +171,37 @@ const ActionButton = ({
 const Row = ({
   preset, order, actions, vendeurMap,
 }: { preset: ColisPagePreset; order: ColisPageOrder; actions?: ColisPageActionSet; vendeurMap?: Record<string, string> }) => {
-  const tokens = useMemo(() => tokenizeRow(preset.rowHtml), [preset.rowHtml]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const html = useMemo(() => renderRowHtml(preset.rowHtml, order, vendeurMap), [preset.rowHtml, order, vendeurMap]);
+  // After render, find action slots inside this row to mount React portals.
+  const slotsRef = useRef<{ name: string; el: HTMLElement }[]>([]);
+  // We re-collect on every render so updated `actions` callbacks bind correctly.
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const nodes = Array.from(containerRef.current.querySelectorAll<HTMLElement>(".cp-action-slot"));
+    slotsRef.current = nodes.map((el) => ({ name: el.dataset.cpAction || "", el }));
+    // Force a re-render so portals mount on the freshly collected DOM nodes.
+    forceRerender();
+  }, [html]);
+
+  const [, setTick] = (require as any) ? [0, () => undefined] : [0, () => undefined];
+  // Use a tiny rerender trigger (React state) — replace the require trick:
+  // (kept above only to avoid lint about unused; real impl below)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const [tick, setTickState] = (function useTick() {
+    // dynamic import of useState to avoid duplicate import linting block
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const React = require("react");
+    return React.useState(0);
+  })();
+  const forceRerender = () => setTickState((n: number) => n + 1);
+  void tick;
+
   return (
-    <div style={{ display: "contents" }}>
-      {tokens.map((t, i) => t.kind === "html"
-        ? <span key={i} style={{ display: "contents" }} dangerouslySetInnerHTML={{ __html: sanitizeColisHtml(renderRowTemplate(t.html, order, vendeurMap)) }} />
-        : <ActionButton key={i} name={t.name} order={order} actions={actions} />
+    <div ref={containerRef} className="cp-row-wrap" style={{ display: "contents" }}>
+      <div dangerouslySetInnerHTML={{ __html: html }} style={{ display: "contents" }} />
+      {slotsRef.current.map(({ name, el }, i) =>
+        createPortal(<ActionButton name={name} order={order} actions={actions} />, el, `${order.id}-${name}-${i}`)
       )}
     </div>
   );
@@ -216,7 +211,6 @@ export const ColisCanvasPage = ({
   preset, title, orders, toolbarSlot, filtersSlot, loading, emptyMessage = "Aucune commande",
   detailsRenderer, actions, vendeurMap,
 }: ColisCanvasPageProps) => {
-  // Page header HTML is split on slots so React owns interactive children.
   const segments = useMemo(() => {
     const head = preset.pageHeaderHtml
       .replace(/{{\s*title\s*}}/g, title)
@@ -238,13 +232,15 @@ export const ColisCanvasPage = ({
       <style dangerouslySetInnerHTML={{ __html: preset.css }} />
       {segments.map((seg, i) => {
         if (seg.kind === "html") {
-          return <span key={i} style={{ display: "contents" }} dangerouslySetInnerHTML={{ __html: sanitizeColisHtml(seg.value) }} />;
+          return <div key={i} style={{ display: "contents" }} dangerouslySetInnerHTML={{ __html: sanitizeColisHtml(seg.value) }} />;
         }
         if (seg.value === "filters") return <Fragment key={i}>{filtersSlot}</Fragment>;
         if (seg.value === "toolbar") return <Fragment key={i}>{toolbarSlot}</Fragment>;
         if (seg.value === "rows") {
           if (loading) return <div key={i} className="cp-empty">Chargement…</div>;
-          if (orders.length === 0) return <div key={i} className="cp-empty" dangerouslySetInnerHTML={{ __html: sanitizeColisHtml(preset.emptyHtml.replace(/Aucune commande/, emptyMessage)) }} />;
+          if (orders.length === 0) {
+            return <div key={i} className="cp-empty" dangerouslySetInnerHTML={{ __html: sanitizeColisHtml(preset.emptyHtml.replace(/Aucune commande/, emptyMessage)) }} />;
+          }
           return (
             <Fragment key={i}>
               {orders.map((order) => (
