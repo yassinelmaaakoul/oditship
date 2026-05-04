@@ -1,4 +1,4 @@
-import { Fragment, ReactNode, useEffect, useMemo, useRef } from "react";
+import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, MessageCircle, Pencil, Phone, Printer, Trash2 } from "lucide-react";
@@ -173,34 +173,18 @@ const Row = ({
 }: { preset: ColisPagePreset; order: ColisPageOrder; actions?: ColisPageActionSet; vendeurMap?: Record<string, string> }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const html = useMemo(() => renderRowHtml(preset.rowHtml, order, vendeurMap), [preset.rowHtml, order, vendeurMap]);
-  // After render, find action slots inside this row to mount React portals.
-  const slotsRef = useRef<{ name: string; el: HTMLElement }[]>([]);
-  // We re-collect on every render so updated `actions` callbacks bind correctly.
+  const [slots, setSlots] = useState<{ name: string; el: HTMLElement }[]>([]);
+
   useEffect(() => {
     if (!containerRef.current) return;
     const nodes = Array.from(containerRef.current.querySelectorAll<HTMLElement>(".cp-action-slot"));
-    slotsRef.current = nodes.map((el) => ({ name: el.dataset.cpAction || "", el }));
-    // Force a re-render so portals mount on the freshly collected DOM nodes.
-    forceRerender();
+    setSlots(nodes.map((el) => ({ name: el.dataset.cpAction || "", el })));
   }, [html]);
-
-  const [, setTick] = (require as any) ? [0, () => undefined] : [0, () => undefined];
-  // Use a tiny rerender trigger (React state) — replace the require trick:
-  // (kept above only to avoid lint about unused; real impl below)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const [tick, setTickState] = (function useTick() {
-    // dynamic import of useState to avoid duplicate import linting block
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const React = require("react");
-    return React.useState(0);
-  })();
-  const forceRerender = () => setTickState((n: number) => n + 1);
-  void tick;
 
   return (
     <div ref={containerRef} className="cp-row-wrap" style={{ display: "contents" }}>
       <div dangerouslySetInnerHTML={{ __html: html }} style={{ display: "contents" }} />
-      {slotsRef.current.map(({ name, el }, i) =>
+      {slots.map(({ name, el }, i) =>
         createPortal(<ActionButton name={name} order={order} actions={actions} />, el, `${order.id}-${name}-${i}`)
       )}
     </div>
