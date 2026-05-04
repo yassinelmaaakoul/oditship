@@ -243,6 +243,43 @@ const VendeurColis = () => {
     printStickers(eligibleSticker);
   };
 
+  if (pagePreset.enabled && pagePreset.appliesTo.vendeur) {
+    return (
+      <div className="space-y-4">
+        <ColisCanvasPage
+          preset={pagePreset}
+          title="Mes commandes"
+          orders={filtered as any}
+          loading={loading}
+          actions={{
+            selectable: true,
+            isSelected: (id) => selected.has(id),
+            onToggleSelect: toggleOne,
+            isDetailsOpen: (id) => expandedOrderId === id,
+            onToggleDetails: (id) => setExpandedOrderId(expandedOrderId === id ? null : id),
+            onPrintSticker: (o) => printSticker(o as any),
+            onEdit: (o) => { setEditing({ ...(o as any), comment: (o as any).comment ?? "" }); setFormOpen(true); },
+            onDelete: (id) => setDeleteId(id),
+          }}
+          detailsRenderer={(o) => <OrderDetailsPanel order={o as any} previewSettings={previewSettings} />}
+        />
+        <OrderFormDialog open={formOpen} onOpenChange={setFormOpen} initialValues={editing ?? undefined} onSaved={load} />
+        <AlertDialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer cette commande ?</AlertDialogTitle>
+              <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={deleteOrder}>Supprimer</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 pb-24 pt-32 xl:pt-20">
       <div className="fixed inset-x-0 top-14 z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:left-64 lg:px-6">
