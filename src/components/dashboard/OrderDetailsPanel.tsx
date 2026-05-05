@@ -255,7 +255,11 @@ export const OrderDetailsPanel = ({
               postponed_date: item.reported_date,
               scheduled_date: item.scheduled_date,
               history_status: statusLabel(item.status),
-              history_message: item.message ? item.message : `Statut mis à jour vers ${statusLabel(item.status)}`,
+              history_message: item.message
+                ? item.message
+                : (item.old_status == null || item.status === "Crée" || item.status === "Créé")
+                  ? "Commande créée"
+                  : `Statut mis à jour vers ${statusLabel(item.status)}`,
               history_actor: actorName(item) === "Système" ? vendeurName(data?.vendeur) : actorName(item),
               history_date: item.changed_at,
             };
