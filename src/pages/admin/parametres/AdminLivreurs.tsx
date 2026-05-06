@@ -1042,9 +1042,14 @@ const AdminLivreurs = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => setEditing(l)}>
-                      <SlidersHorizontal className="h-4 w-4 mr-1" /> Configure
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="default" size="sm" onClick={() => window.open(`/admin/livreurs/${l.id}/workflows`, "_blank")}>
+                        <Zap className="h-4 w-4 mr-1" /> Workflows
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditing(l)}>
+                        <SlidersHorizontal className="h-4 w-4 mr-1" /> Legacy
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
