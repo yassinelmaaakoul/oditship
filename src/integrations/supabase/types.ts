@@ -465,6 +465,135 @@ export type Database = {
           },
         ]
       }
+      livreur_workflow_runs: {
+        Row: {
+          duration_ms: number | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          is_test: boolean
+          livreur_id: string
+          order_id: number | null
+          output: Json | null
+          started_at: string
+          status: string
+          step_results: Json
+          trigger_payload: Json | null
+          trigger_type: string
+          workflow_id: string
+        }
+        Insert: {
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          is_test?: boolean
+          livreur_id: string
+          order_id?: number | null
+          output?: Json | null
+          started_at?: string
+          status: string
+          step_results?: Json
+          trigger_payload?: Json | null
+          trigger_type: string
+          workflow_id: string
+        }
+        Update: {
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          is_test?: boolean
+          livreur_id?: string
+          order_id?: number | null
+          output?: Json | null
+          started_at?: string
+          status?: string
+          step_results?: Json
+          trigger_payload?: Json | null
+          trigger_type?: string
+          workflow_id?: string
+        }
+        Relationships: []
+      }
+      livreur_workflow_schedules: {
+        Row: {
+          id: string
+          last_message: string | null
+          last_run_at: string | null
+          last_status: string | null
+          next_run_at: string | null
+          trigger_key: string
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          id?: string
+          last_message?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          next_run_at?: string | null
+          trigger_key: string
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          id?: string
+          last_message?: string | null
+          last_run_at?: string | null
+          last_status?: string | null
+          next_run_at?: string | null
+          trigger_key?: string
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: []
+      }
+      livreur_workflows: {
+        Row: {
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          is_default: boolean
+          livreur_id: string
+          name: string
+          settings: Json
+          steps: Json
+          triggers: Json
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          is_default?: boolean
+          livreur_id: string
+          name: string
+          settings?: Json
+          steps?: Json
+          triggers?: Json
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          is_default?: boolean
+          livreur_id?: string
+          name?: string
+          settings?: Json
+          steps?: Json
+          triggers?: Json
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: []
+      }
       order_status_history: {
         Row: {
           actor_label: string | null

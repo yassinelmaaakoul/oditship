@@ -30,6 +30,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminColis from "./pages/admin/AdminColis";
 import AdminUtilisateurs from "./pages/admin/AdminUtilisateurs";
 import AdminParametres from "./pages/admin/AdminParametres";
+import AdminLivreurWorkflows from "./pages/admin/AdminLivreurWorkflows";
 
 import LivreurDashboard from "./pages/livreur/LivreurDashboard";
 import LivreurColis from "./pages/livreur/LivreurColis";
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="utilisateurs" element={<AdminUtilisateurs />} />
               <Route path="parametres" element={<AdminParametres />} />
             </Route>
+            <Route path="/admin/livreurs/:livreurId/workflows" element={<ProtectedRoute allowedRoles={["administrateur"]}><AdminLivreurWorkflows /></ProtectedRoute>} />
 
             {/* Livreur */}
             <Route path="/dashboard/livreur" element={<ProtectedRoute allowedRoles={["livreur","administrateur"]}><LivreurDashboard /></ProtectedRoute>}>

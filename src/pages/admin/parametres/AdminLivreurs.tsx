@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, Clock, Eye, EyeOff, HelpCircle, PackageCheck, Plus, RefreshCw, ShieldCheck, SlidersHorizontal, Trash2, Webhook } from "lucide-react";
+import { ChevronDown, Clock, Eye, EyeOff, HelpCircle, PackageCheck, Plus, RefreshCw, ShieldCheck, SlidersHorizontal, Trash2, Webhook, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 interface Livreur { id: string; username: string; full_name: string | null; api_enabled: boolean; api_token: string | null; authentication_config?: Record<string, unknown> | null; create_package_config?: Record<string, unknown> | null; }
@@ -1042,9 +1042,14 @@ const AdminLivreurs = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => setEditing(l)}>
-                      <SlidersHorizontal className="h-4 w-4 mr-1" /> Configure
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="default" size="sm" onClick={() => window.open(`/admin/livreurs/${l.id}/workflows`, "_blank")}>
+                        <Zap className="h-4 w-4 mr-1" /> Workflows
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditing(l)}>
+                        <SlidersHorizontal className="h-4 w-4 mr-1" /> Legacy
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
