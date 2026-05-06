@@ -185,6 +185,20 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
             });
           }
           output = { logged: true };
+        } else if (step.type === "find_order") {
+          // Find an order by a field (default: external_tracking_number) and load into ctx.order
+          const field = String(step.config?.field || "external_tracking_number");
+          const value = interpolate(step.config?.value, ctx);
+          if (value === undefined || value === null || value === "") throw new Error(`find_order: empty value for ${field}`);
+          const { data, error } = await admin.from("orders").select("*").eq(field, value).order("id", { ascending: false }).limit(1).maybeSingle();
+          if (error) throw new Error(`find_order: ${error.message}`);
+          if (!data) {
+            if (step.config?.optional) { output = { found: false }; }
+            else throw new Error(`find_order: no order with ${field}=${value}`);
+          } else {
+            ctx.order = data;
+            output = { found: true, order_id: data.id };
+          }
         } else if (step.type === "extract") {
           const result: Json = {};
           for (const [k, p] of Object.entries(step.config?.fields || {})) result[k] = getPath(ctx, String(p));
