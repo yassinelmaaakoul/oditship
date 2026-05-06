@@ -568,7 +568,7 @@ const ApiOperationsEditor = ({ value, onChange }: { value: string; onChange: (va
             <KeyValueEditor label="Headers" help="Headers spécifiques à cette opération." value={formatJson(operation.headers ?? {})} onChange={(headers) => updateOperation(index, { headers: safeRecord(headers) })} />
             <div>
               <Label className="text-xs">Payload JSON</Label>
-              <FieldHelp>Corps JSON brut envoyé au provider. Utilisez {"{{create_response.field}}"} ou {"{{order.field}}"} pour interpoler.</FieldHelp>
+              <FieldHelp>{"Corps JSON brut envoyé au provider. Utilisez {{create_response.field}} ou {{order.field}} pour interpoler."}</FieldHelp>
               <Textarea
                 className="font-mono text-xs min-h-32"
                 placeholder={'{\n  "packages": ["{{create_response.trackingID}}"]\n}'}
