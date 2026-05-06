@@ -862,8 +862,7 @@ const FilterStepEditor = ({ step, onChange }: { step: Json; onChange: (p: Json) 
     </div>
   );
 };
-
-
+const HttpStepEditor = ({ step, onChange, onImportCurl }: { step: Json; onChange: (p: Json) => void; onImportCurl: () => void }) => {
   const config = step.config || {};
   const [bodyText, setBodyText] = useState(() => typeof config.body === "string" ? config.body : JSON.stringify(config.body || {}, null, 2));
   const [bodyMode, setBodyMode] = useState<"fields" | "json">(() => (config.body && typeof config.body === "object" && !Array.isArray(config.body)) ? "fields" : "json");
