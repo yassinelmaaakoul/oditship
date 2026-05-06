@@ -694,12 +694,7 @@ const StepCard = ({ step, index, total, onChange, onRemove, onMove, onImportCurl
             </div>
           )}
           {step.type === "validate" && (
-            <div className="text-xs text-muted-foreground">
-              Définir les règles via JSON. Exemple: <code>{`{ "customer_phone": { "regex": "^[0-9]{10}$" } }`}</code>
-              <Textarea className="mt-2 font-mono text-xs" rows={5}
-                value={JSON.stringify(step.config?.rules || {}, null, 2)}
-                onChange={(e) => { try { onChange({ config: { ...step.config, rules: JSON.parse(e.target.value) } }); } catch {} }} />
-            </div>
+            <ValidateRulesEditor step={step} onChange={onChange} />
           )}
           {/* Advanced */}
           <details className="border-t pt-3">
