@@ -442,16 +442,16 @@ const TriggerCard = ({ trigger, onChange, onRemove }: { trigger: Json; onChange:
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>De (statut)</Label>
-            <Select value={trigger.from_status || ""} onValueChange={(v) => onChange({ from_status: v })}>
-              <SelectTrigger><SelectValue placeholder="N'importe lequel" /></SelectTrigger>
-              <SelectContent><SelectItem value="">N'importe lequel</SelectItem>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            <Select value={trigger.from_status || "__any__"} onValueChange={(v) => onChange({ from_status: v === "__any__" ? "" : v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="__any__">N'importe lequel</SelectItem>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <Label>Vers (statut)</Label>
-            <Select value={trigger.to_status || ""} onValueChange={(v) => onChange({ to_status: v })}>
-              <SelectTrigger><SelectValue placeholder="N'importe lequel" /></SelectTrigger>
-              <SelectContent><SelectItem value="">N'importe lequel</SelectItem>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            <Select value={trigger.to_status || "__any__"} onValueChange={(v) => onChange({ to_status: v === "__any__" ? "" : v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="__any__">N'importe lequel</SelectItem>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
