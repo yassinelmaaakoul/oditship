@@ -727,6 +727,7 @@ const StepCard = ({ step, index, total, onChange, onRemove, onMove, onImportCurl
 const HttpStepEditor = ({ step, onChange, onImportCurl }: { step: Json; onChange: (p: Json) => void; onImportCurl: () => void }) => {
   const config = step.config || {};
   const [bodyText, setBodyText] = useState(() => typeof config.body === "string" ? config.body : JSON.stringify(config.body || {}, null, 2));
+  const [bodyMode, setBodyMode] = useState<"fields" | "json">(() => (config.body && typeof config.body === "object" && !Array.isArray(config.body)) ? "fields" : "json");
 
   return (
     <div className="space-y-3">
@@ -744,12 +745,35 @@ const HttpStepEditor = ({ step, onChange, onImportCurl }: { step: Json; onChange
       </div>
       {config.method !== "GET" && (
         <div>
-          <Label>Body (JSON, supports {`{{order.field}}`})</Label>
-          <Textarea className="font-mono text-xs min-h-32" value={bodyText} onChange={(e) => {
-            setBodyText(e.target.value);
-            try { onChange({ config: { ...config, body: JSON.parse(e.target.value), body_type: "json" } }); }
-            catch { onChange({ config: { ...config, body: e.target.value, body_type: "raw" } }); }
-          }} />
+          <div className="flex items-center justify-between mb-1">
+            <Label>Body (supports {`{{order.field}}`})</Label>
+            <div className="flex gap-1">
+              <Button type="button" variant={bodyMode === "fields" ? "default" : "outline"} size="sm" onClick={() => {
+                if (typeof config.body === "string") {
+                  try { const p = JSON.parse(config.body); onChange({ config: { ...config, body: p, body_type: "json" } }); } catch {}
+                }
+                setBodyMode("fields");
+              }}>Champs</Button>
+              <Button type="button" variant={bodyMode === "json" ? "default" : "outline"} size="sm" onClick={() => {
+                setBodyText(typeof config.body === "string" ? config.body : JSON.stringify(config.body || {}, null, 2));
+                setBodyMode("json");
+              }}>JSON</Button>
+            </div>
+          </div>
+          {bodyMode === "fields" && config.body && typeof config.body === "object" && !Array.isArray(config.body) ? (
+            <KeyValueEditor
+              value={config.body as Json}
+              onChange={(v) => onChange({ config: { ...config, body: v, body_type: "json" } })}
+              placeholderK="champ"
+              placeholderV="valeur ou {{order.customer_name}}"
+            />
+          ) : (
+            <Textarea className="font-mono text-xs min-h-32" value={bodyText} onChange={(e) => {
+              setBodyText(e.target.value);
+              try { onChange({ config: { ...config, body: JSON.parse(e.target.value), body_type: "json" } }); }
+              catch { onChange({ config: { ...config, body: e.target.value, body_type: "raw" } }); }
+            }} />
+          )}
         </div>
       )}
       <div className="flex items-center gap-2 text-sm">
