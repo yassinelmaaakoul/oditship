@@ -133,12 +133,28 @@ Deno.serve(async (req) => {
 
   const [{ data: livreur }, { data: workflows }] = await Promise.all([
     admin.from("profiles").select("id, full_name, username, is_active").eq("id", hubLivreur.livreur_id).maybeSingle(),
-    admin.from("livreur_workflows").select("settings, enabled").eq("livreur_id", hubLivreur.livreur_id).eq("enabled", true),
+    admin.from("livreur_workflows").select("settings, enabled, triggers, steps").eq("livreur_id", hubLivreur.livreur_id).eq("enabled", true),
   ]);
   if (!livreur?.is_active) return jsonResponse({ error: GENERIC_SYSTEM_ERROR, code: "CONFIGURATION_ERROR" }, 422);
 
-  // Aggregate validation rules from active workflows' settings.validation_rules
-  const validationRules = (workflows ?? []).reduce((acc: any, wf: any) => ({ ...acc, ...(wf?.settings?.validation_rules ?? {}) }), {});
+  // Aggregate validation rules:
+  // 1) Legacy: settings.validation_rules
+  // 2) From `validate` steps inside workflows triggered by `order_created`
+  const validationRules: JsonRecord = (workflows ?? []).reduce((acc: any, wf: any) => {
+    const merged = { ...acc, ...(wf?.settings?.validation_rules ?? {}) };
+    const triggers: any[] = Array.isArray(wf?.triggers) ? wf.triggers : [];
+    const hasOrderCreated = triggers.some((t) => t?.enabled !== false && t?.type === "order_created");
+    if (hasOrderCreated) {
+      const steps: any[] = Array.isArray(wf?.steps) ? wf.steps : [];
+      for (const step of steps) {
+        if (step?.enabled === false) continue;
+        if (step?.type !== "validate") continue;
+        const rules = step?.config?.rules ?? {};
+        Object.assign(merged, rules);
+      }
+    }
+    return merged;
+  }, {});
 
   try {
     if (body.order && Object.keys(validationRules).length > 0) validateOrder(body.order, validationRules);
