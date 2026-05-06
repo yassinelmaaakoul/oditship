@@ -21,10 +21,9 @@ const LivreurColis = () => {
   const [pagePreset, setPagePreset] = useState<ColisPagePreset>(defaultColisPagePreset);
 
   useEffect(() => {
-    supabase.from("orders").select("*").order("created_at", { ascending: false })
+    supabase.from("orders").select(ORDERS_COLUMNS).order("created_at", { ascending: false }).limit(500)
       .then(({ data }) => { setOrders(data ?? []); setLoading(false); });
-    (supabase as any).from("app_settings").select("value").eq("key", COLIS_PAGE_PRESET_KEY).maybeSingle()
-      .then(({ data }: any) => setPagePreset(normalizeColisPagePreset(data?.value)));
+    getAppSetting(COLIS_PAGE_PRESET_KEY).then((v) => setPagePreset(normalizeColisPagePreset(v)));
     const channel = supabase.channel("livreur-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
       setOrders((current) => {
         if (payload.eventType === "DELETE") return current.filter((order) => order.id !== (payload.old as any).id);
