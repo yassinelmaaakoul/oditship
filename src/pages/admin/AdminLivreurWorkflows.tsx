@@ -455,14 +455,40 @@ const AdminLivreurWorkflows = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="runs" className="flex-1 overflow-auto p-4 space-y-2">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold">Dernières exécutions</h3>
-                <Button variant="outline" size="sm" onClick={loadRuns}><RefreshCw className="h-4 w-4 mr-1" /> Rafraîchir</Button>
+            <TabsContent value="runs" className="flex-1 overflow-auto p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-semibold">Dernières exécutions ({filteredRuns.length})</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input className="h-9 w-56" placeholder="Recherche order, status..." value={runSearch} onChange={(e) => setRunSearch(e.target.value)} />
+                  <Select value={runFilter} onValueChange={setRunFilter}>
+                    <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes</SelectItem>
+                      <SelectItem value="workflow">Workflow uniquement</SelectItem>
+                      <SelectItem value="legacy">Legacy uniquement</SelectItem>
+                      <SelectItem value="create_package">create_package</SelectItem>
+                      <SelectItem value="webhook_status">webhook_status</SelectItem>
+                      <SelectItem value="polling_status">polling_status</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={loadRuns}><RefreshCw className="h-4 w-4 mr-1" /> Rafraîchir</Button>
+                </div>
               </div>
-              {recentRuns.map((r) => <RunCard key={r.id} run={r} />)}
-              {!recentRuns.length && <div className="text-sm text-muted-foreground text-center p-8">Aucune exécution récente</div>}
+              <Card className="p-3 flex flex-wrap items-center gap-3 bg-muted/30">
+                <div className="text-sm font-medium">Nettoyage automatique des logs</div>
+                <label className="flex items-center gap-2 text-sm"><Switch checked={retention.enabled} onCheckedChange={(enabled) => setRetention({ ...retention, enabled })} /> Activer</label>
+                <div className="flex items-center gap-2"><Input type="number" min={1} className="h-9 w-24" value={retention.hours} onChange={(e) => setRetention({ ...retention, hours: Number(e.target.value) })} /><span className="text-sm text-muted-foreground">heures</span></div>
+                <Button variant="outline" size="sm" onClick={saveRetention}>Enregistrer</Button>
+              </Card>
+              {filteredRuns.map((r) => (
+                <div key={r.id} className="relative group">
+                  <RunCard run={r} />
+                  <Button variant="ghost" size="icon" className="absolute top-2 right-10 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); deleteRun(r); }}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              ))}
+              {!filteredRuns.length && <div className="text-sm text-muted-foreground text-center p-8">Aucune exécution</div>}
             </TabsContent>
+
 
             <TabsContent value="settings" className="flex-1 overflow-auto p-4 space-y-4">
               <div className="flex items-center gap-3">
