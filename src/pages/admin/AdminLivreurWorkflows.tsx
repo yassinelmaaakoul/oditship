@@ -46,6 +46,7 @@ const TRIGGER_TYPES = [
 
 const STEP_TYPES = [
   { value: "http", label: "HTTP Request", icon: Globe, desc: "Appeler un endpoint REST/JSON" },
+  { value: "filter", label: "Filter / IF", icon: GitBranch, desc: "Condition: continuer ou arrêter selon des règles" },
   { value: "extract", label: "Extract fields", icon: Layers, desc: "Extraire des valeurs de la réponse" },
   { value: "set_variable", label: "Set variables", icon: SettingsIcon, desc: "Définir des variables intermédiaires" },
   { value: "validate", label: "Validate", icon: GitBranch, desc: "Valider les données avant de continuer" },
