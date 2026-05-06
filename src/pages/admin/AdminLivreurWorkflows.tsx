@@ -357,23 +357,41 @@ const AdminLivreurWorkflows = () => {
               <OutputDestinationPanel steps={active.steps} />
               <div className="space-y-2">
                 {active.steps.map((step, idx) => (
-                  <StepCard
+                  <div
                     key={step.id}
-                    step={step}
-                    index={idx}
-                    total={active.steps.length}
-                    onChange={(p) => updateStep(step.id, p)}
-                    onRemove={() => updateActive({ steps: active.steps.filter((s) => s.id !== step.id) })}
-                    onMove={(dir) => {
-                      const i = active.steps.findIndex((s) => s.id === step.id);
-                      const j = i + dir;
-                      if (j < 0 || j >= active.steps.length) return;
+                    draggable
+                    onDragStart={(e) => { e.dataTransfer.setData("text/plain", step.id); e.dataTransfer.effectAllowed = "move"; }}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const fromId = e.dataTransfer.getData("text/plain");
+                      if (!fromId || fromId === step.id) return;
                       const arr = [...active.steps];
-                      [arr[i], arr[j]] = [arr[j], arr[i]];
+                      const fromIdx = arr.findIndex((s) => s.id === fromId);
+                      const toIdx = arr.findIndex((s) => s.id === step.id);
+                      if (fromIdx < 0 || toIdx < 0) return;
+                      const [moved] = arr.splice(fromIdx, 1);
+                      arr.splice(toIdx, 0, moved);
                       updateActive({ steps: arr });
                     }}
-                    onImportCurl={() => { setCurlTargetStepId(step.id); setCurlOpen(true); }}
-                  />
+                  >
+                    <StepCard
+                      step={step}
+                      index={idx}
+                      total={active.steps.length}
+                      onChange={(p) => updateStep(step.id, p)}
+                      onRemove={() => updateActive({ steps: active.steps.filter((s) => s.id !== step.id) })}
+                      onMove={(dir) => {
+                        const i = active.steps.findIndex((s) => s.id === step.id);
+                        const j = i + dir;
+                        if (j < 0 || j >= active.steps.length) return;
+                        const arr = [...active.steps];
+                        [arr[i], arr[j]] = [arr[j], arr[i]];
+                        updateActive({ steps: arr });
+                      }}
+                      onImportCurl={() => { setCurlTargetStepId(step.id); setCurlOpen(true); }}
+                    />
+                  </div>
                 ))}
               </div>
               <AddStepMenu onAdd={(type) => updateActive({ steps: [...active.steps, defaultStep(type)] })} />
