@@ -566,13 +566,32 @@ const ApiOperationsEditor = ({ value, onChange }: { value: string; onChange: (va
             </div>
 
             <KeyValueEditor label="Headers" help="Headers spécifiques à cette opération." value={formatJson(operation.headers ?? {})} onChange={(headers) => updateOperation(index, { headers: safeRecord(headers) })} />
-            <KeyValueEditor label="Payload mapping" help="Mapping des champs envoyés. Utilisez {{create_response.field}} pour récupérer un champ de la création." value={formatJson(operation.payload_mapping ?? {})} onChange={(payload_mapping) => updateOperation(index, { payload_mapping: safeRecord(payload_mapping) })} keyPlaceholder="Champ provider" valuePlaceholder="Champ commande ou {{template}}" />
-            {operation.payload && (
-              <div>
-                <Label className="text-xs">Payload JSON brut (optionnel)</Label>
-                <Textarea className="font-mono text-xs min-h-20" value={typeof operation.payload === "string" ? operation.payload : JSON.stringify(operation.payload, null, 2)} onChange={(e) => { try { updateOperation(index, { payload: JSON.parse(e.target.value) }); } catch { updateOperation(index, { payload: e.target.value }); } }} />
-              </div>
-            )}
+            <div>
+              <Label className="text-xs">Payload JSON</Label>
+              <FieldHelp>Corps JSON brut envoyé au provider. Utilisez {"{{create_response.field}}"} ou {"{{order.field}}"} pour interpoler.</FieldHelp>
+              <Textarea
+                className="font-mono text-xs min-h-32"
+                placeholder={'{\n  "packages": ["{{create_response.trackingID}}"]\n}'}
+                value={
+                  typeof operation.payload === "string"
+                    ? operation.payload
+                    : operation.payload
+                      ? JSON.stringify(operation.payload, null, 2)
+                      : (operation.payload_mapping && Object.keys(operation.payload_mapping).length
+                          ? JSON.stringify(operation.payload_mapping, null, 2)
+                          : "")
+                }
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  try {
+                    const parsed = JSON.parse(raw);
+                    updateOperation(index, { payload: parsed, payload_mapping: undefined });
+                  } catch {
+                    updateOperation(index, { payload: raw, payload_mapping: undefined });
+                  }
+                }}
+              />
+            </div>
           </div>
         );
       })}
