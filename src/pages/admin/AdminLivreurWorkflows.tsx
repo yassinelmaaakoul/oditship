@@ -305,13 +305,13 @@ const AdminLivreurWorkflows = () => {
             </TabsContent>
 
             <TabsContent value="triggers" className="flex-1 overflow-auto p-4 space-y-3">
-              {active.triggers.map((trg) => (
-                <TriggerCard key={trg.id} trigger={trg}
+              {(active.triggers || []).map((trg, i) => (
+                <TriggerCard key={trg?.id || `trg-${i}`} trigger={trg || {}}
                   onChange={(p) => updateTrigger(trg.id, p)}
-                  onRemove={() => updateActive({ triggers: active.triggers.filter((t) => t.id !== trg.id) })}
+                  onRemove={() => updateActive({ triggers: (active.triggers || []).filter((t) => t.id !== trg.id) })}
                 />
               ))}
-              <AddTriggerMenu onAdd={(type) => updateActive({ triggers: [...active.triggers, defaultTrigger(type)] })} />
+              <AddTriggerMenu onAdd={(type) => updateActive({ triggers: [...(active.triggers || []), defaultTrigger(type)] })} />
             </TabsContent>
 
             <TabsContent value="variables" className="flex-1 overflow-auto p-4">
