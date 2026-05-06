@@ -333,6 +333,11 @@ const AdminLivreurWorkflows = () => {
             </div>
             <div className="flex-1" />
             <Button variant="outline" size="sm" onClick={() => { setCurlTargetStepId(null); setCurlOpen(true); }}><Copy className="h-4 w-4 mr-1" /> Import cURL</Button>
+            <Button variant="outline" size="sm" onClick={exportWorkflow}><Download className="h-4 w-4 mr-1" /> Export</Button>
+            <label className="inline-flex">
+              <Button variant="outline" size="sm" asChild><span className="cursor-pointer"><Upload className="h-4 w-4 mr-1" /> Import</span></Button>
+              <input type="file" accept="application/json,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) importWorkflow(f); e.currentTarget.value = ""; }} />
+            </label>
             <Button variant="outline" size="sm" onClick={() => setTestOpen(true)}><TestTube className="h-4 w-4 mr-1" /> Tester</Button>
             <Button variant="destructive" size="sm" onClick={() => deleteWorkflow(active.id)}><Trash2 className="h-4 w-4" /></Button>
             <Button onClick={save} disabled={saving}><Save className="h-4 w-4 mr-1" /> {saving ? "..." : "Enregistrer"}</Button>
