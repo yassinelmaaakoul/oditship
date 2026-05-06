@@ -263,13 +263,26 @@ Deno.serve(async (req) => {
     lastEndpoint = endpoint;
 
     const delayMs = Math.ceil(1000 / Math.max(Number(settings?.rate_limit_per_second) || Number(createConfig.rate_limit_per_second) || 5, 0.1));
+    const operationsList = createConfig.operations ?? [];
+    const beforeOps = operationsList.filter((op: any) => op?.trigger === "before_create" && op?.enabled !== false);
+    const afterOps = operationsList.filter((op: any) => {
+      if (op?.enabled === false) return false;
+      const t = op?.trigger ?? "after_create";
+      return t === "after_create" || t === "on_status_change" && (op?.trigger_status ?? "Pickup") === "Pickup";
+    });
+
+    const exchanges: any[] = [];
+    for (const op of beforeOps) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      const r = await sendRequest(op, order, context, op.name || "Before-create op");
+      exchanges.push(r.exchange);
+    }
     const createResult = await sendRequest(createConfig, order, context);
     const result = createResult.data;
-    const exchanges = [createResult.exchange];
-    for (const operation of createConfig.operations ?? []) {
-      if (operation?.enabled === false) continue;
+    exchanges.push(createResult.exchange);
+    for (const operation of afterOps) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
-      const operationResult = await sendRequest(operation, order, { ...context, create_response: result }, operation.name || "API operation");
+      const operationResult = await sendRequest(operation, order, { ...context, create_response: result }, operation.name || "After-create op");
       exchanges.push(operationResult.exchange);
     }
 
