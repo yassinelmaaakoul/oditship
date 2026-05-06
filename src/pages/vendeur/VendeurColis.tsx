@@ -81,8 +81,9 @@ const VendeurColis = () => {
     setLoading(true);
     let query = supabase
       .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .select(ORDERS_COLUMNS)
+      .order("created_at", { ascending: false })
+      .limit(1000);
     if (isAgent && colisScope === "own") query = query.eq("agent_id", user.id);
     const { data, error } = await query;
     if (error) toast.error(error.message);
@@ -95,10 +96,8 @@ const VendeurColis = () => {
     if (user) {
       supabase.from("profiles").select("id, full_name, username").eq("agent_of", user.id)
         .then(({ data }) => setAgents(data ?? []));
-      (supabase as any).from("app_settings").select("value").eq("key", COLIS_PREVIEW_SETTING_KEY).maybeSingle()
-        .then(({ data }: any) => setPreviewSettings(normalizeColisPreviewSettings(data?.value)));
-      (supabase as any).from("app_settings").select("value").eq("key", COLIS_PAGE_PRESET_KEY).maybeSingle()
-        .then(({ data }: any) => setPagePreset(normalizeColisPagePreset(data?.value)));
+      getAppSetting(COLIS_PREVIEW_SETTING_KEY).then((v) => setPreviewSettings(normalizeColisPreviewSettings(v)));
+      getAppSetting(COLIS_PAGE_PRESET_KEY).then((v) => setPagePreset(normalizeColisPagePreset(v)));
     }
     const channel = supabase.channel("vendeur-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
       setOrders((current) => {
