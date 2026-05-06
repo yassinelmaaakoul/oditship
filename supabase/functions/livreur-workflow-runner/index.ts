@@ -163,6 +163,7 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
         } else if (step.type === "set_variable") {
           const v: Json = {};
           for (const [k, expr] of Object.entries(step.config?.values || {})) v[k] = interpolate(expr, ctx);
+          ctx.vars = { ...(ctx.vars || {}), ...v };
           output = v;
         } else if (step.type === "update_order") {
           const oid = ctx.order?.id ?? interpolate(step.config?.order_id, ctx);
