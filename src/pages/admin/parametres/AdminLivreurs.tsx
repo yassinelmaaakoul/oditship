@@ -152,69 +152,6 @@ const AdminLivreurs = () => {
         </Table>
       </Card>
 
-      <Card className="mt-4 overflow-x-auto p-4">
-        <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h3 className="font-semibold">Workflow & API logs</h3>
-            <p className="text-sm text-muted-foreground">Latest {apiLogs.length} entries from workflow executions and API operations.</p>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Input className="h-9 w-64" placeholder="Search order, status, message..." value={logSearch} onChange={(e) => setLogSearch(e.target.value)} />
-            <Select value={logFilter} onValueChange={setLogFilter}>
-              <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="create_package">create_package</SelectItem>
-                <SelectItem value="webhook_status">webhook_status</SelectItem>
-                <SelectItem value="polling_status">polling_status</SelectItem>
-              </SelectContent>
-            </Select>
-            <label className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm"><Switch checked={retention.enabled} onCheckedChange={(enabled) => setRetention({ ...retention, enabled })} /> Auto clean</label>
-            <div className="flex items-center gap-2"><Input type="number" min={1} className="h-9 w-24" value={retention.hours} onChange={(e) => setRetention({ ...retention, hours: Number(e.target.value) })} /><span className="text-sm text-muted-foreground">hours</span></div>
-            <Button variant="outline" size="sm" onClick={saveRetention}>Save</Button>
-            <Button variant="outline" size="sm" onClick={load}><RefreshCw className="mr-1 h-4 w-4" /> Refresh</Button>
-          </div>
-        </div>
-        <Table>
-          <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Order</TableHead><TableHead>Livreur</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Message</TableHead><TableHead className="text-right">Details</TableHead></TableRow></TableHeader>
-          <TableBody>
-            {filteredLogs.length === 0 ? <TableRow><TableCell colSpan={7} className="py-6 text-center text-muted-foreground">No logs</TableCell></TableRow> : filteredLogs.map((log) => {
-              const livreur = livreurs.find((item) => item.id === log.livreur_id);
-              return <TableRow key={log.id}>
-                <TableCell className="whitespace-nowrap text-xs">{new Date(log.created_at).toLocaleString("fr-FR")}</TableCell>
-                <TableCell>{log.order_id ?? "—"}</TableCell>
-                <TableCell>{livreur?.full_name || livreur?.username || "—"}</TableCell>
-                <TableCell>{log.event_type}</TableCell>
-                <TableCell><Badge variant={log.status === "success" || log.status === "received" ? "default" : log.status === "ignored" ? "secondary" : "destructive"}>{log.status}</Badge></TableCell>
-                <TableCell className="max-w-md truncate" title={log.message ?? ""}>{log.message ?? "—"}</TableCell>
-                <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>Full details</Button></TableCell>
-              </TableRow>;
-            })}
-          </TableBody>
-        </Table>
-      </Card>
-
-      <Dialog open={!!selectedLog} onOpenChange={(v) => !v && setSelectedLog(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Log full details</DialogTitle></DialogHeader>
-          {selectedLog && (
-            <div className="space-y-3 text-sm">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div><Label>Time</Label><p className="rounded-md bg-muted p-2">{new Date(selectedLog.created_at).toLocaleString("fr-FR")}</p></div>
-                <div><Label>Event</Label><p className="rounded-md bg-muted p-2">{selectedLog.event_type}</p></div>
-                <div><Label>Order</Label><p className="rounded-md bg-muted p-2">{selectedLog.order_id ?? "—"}</p></div>
-                <div><Label>Status</Label><p className="rounded-md bg-muted p-2">{selectedLog.status}</p></div>
-              </div>
-              <div><Label>Message</Label><p className="rounded-md bg-muted p-2">{selectedLog.message ?? "—"}</p></div>
-              <div><Label>Details</Label><pre className="max-h-[55vh] overflow-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(selectedLog.details ?? {}, null, 2)}</pre></div>
-            </div>
-          )}
-          <DialogFooter>
-            {selectedLog && <Button type="button" variant="destructive" onClick={() => deleteLog(selectedLog.id)}><Trash2 className="mr-1 h-4 w-4" /> Delete log</Button>}
-            <Button type="button" variant="outline" onClick={() => setSelectedLog(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };
