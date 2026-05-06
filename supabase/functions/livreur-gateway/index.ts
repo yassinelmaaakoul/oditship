@@ -245,6 +245,7 @@ Deno.serve(async (req) => {
     if (error) return jsonResponse({ error: error.message }, 500);
     await insertPickupHistory(`Pickup — tracking interne ${trackingNumber}`);
     await logApi(admin, { order_id: order.id, livreur_id: livreur.id, event_type: "create_package", status: "success", message: "Internal tracking generated because driver API is disabled", details: { mode: "internal_tracking", webhook_enabled: legacySettings?.webhook_enabled === true, generated_tracking: trackingNumber } });
+    triggerWorkflowEvent(livreur.id, { ...order, status: "Pickup", tracking_number: trackingNumber }, "Confirmé", "Pickup");
     return jsonResponse({ ok: true, mode: "internal_tracking", message: "External API disabled for this driver; internal tracking generated.", tracking_number: trackingNumber });
   }
 
