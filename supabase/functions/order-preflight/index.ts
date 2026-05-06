@@ -119,14 +119,17 @@ Deno.serve(async (req) => {
   const { data: hubLivreur } = await admin.from("hub_livreur").select("livreur_id").eq("hub_id", hubCity.hub_id).maybeSingle();
   if (!hubLivreur?.livreur_id) return jsonResponse({ error: GENERIC_SYSTEM_ERROR, code: "CONFIGURATION_ERROR" }, 422);
 
-  const [{ data: livreur }, { data: settings }] = await Promise.all([
+  const [{ data: livreur }, { data: workflows }] = await Promise.all([
     admin.from("profiles").select("id, full_name, username, is_active").eq("id", hubLivreur.livreur_id).maybeSingle(),
-    admin.from("livreur_api_settings").select("validation_rules, is_active").eq("livreur_id", hubLivreur.livreur_id).maybeSingle(),
+    admin.from("livreur_workflows").select("settings, enabled").eq("livreur_id", hubLivreur.livreur_id).eq("enabled", true),
   ]);
   if (!livreur?.is_active) return jsonResponse({ error: GENERIC_SYSTEM_ERROR, code: "CONFIGURATION_ERROR" }, 422);
 
+  // Aggregate validation rules from active workflows' settings.validation_rules
+  const validationRules = (workflows ?? []).reduce((acc: any, wf: any) => ({ ...acc, ...(wf?.settings?.validation_rules ?? {}) }), {});
+
   try {
-    if (body.order && settings?.is_active !== false) validateOrder(body.order, settings?.validation_rules ?? {});
+    if (body.order && Object.keys(validationRules).length > 0) validateOrder(body.order, validationRules);
   } catch (error) {
     const publicMessage = error && typeof error === "object" && "publicMessage" in error ? String((error as any).publicMessage) : "Commande non conforme aux règles du livreur";
     return jsonResponse({ error: publicMessage, code: "VALIDATION_ERROR", field: (error as any)?.field, label: (error as any)?.label }, 422);
