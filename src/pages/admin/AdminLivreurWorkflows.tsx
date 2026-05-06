@@ -41,6 +41,7 @@ const TRIGGER_TYPES = [
   { value: "schedule", label: "Programmé (date fixe)", icon: "📅", desc: "À une date précise, une seule fois" },
   { value: "recurring", label: "Récurrent (interval)", icon: "♻️", desc: "Toutes les X minutes/heures/jours" },
   { value: "webhook", label: "Webhook entrant", icon: "🪝", desc: "URL appelée par le livreur" },
+  { value: "on_pickup_request", label: "Demande de Pickup", icon: "📦", desc: "Quand le vendeur clique 'Envoyer au livreur' (Confirmé → Pickup)" },
 ];
 
 const STEP_TYPES = [
