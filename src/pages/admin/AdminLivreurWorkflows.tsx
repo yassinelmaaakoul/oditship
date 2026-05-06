@@ -68,6 +68,7 @@ function defaultStep(type: string): Json {
   if (type === "validate") base.config = { rules: {} };
   if (type === "update_order") base.config = { updates: {} };
   if (type === "log_status") base.config = { new_status: "Pickup", note: "" };
+  if (type === "filter") base.config = { mode: "all", conditions: [{ left: "{{order.status}}", operator: "eq", right: "Confirmé" }], on_false: "stop" };
   return base;
 }
 
