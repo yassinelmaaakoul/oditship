@@ -93,6 +93,35 @@ const AdminLivreurWorkflows = () => {
   const [curlText, setCurlText] = useState("");
   const [curlTargetStepId, setCurlTargetStepId] = useState<string | null>(null);
   const [recentRuns, setRecentRuns] = useState<Json[]>([]);
+  const [runFilter, setRunFilter] = useState("all");
+  const [runSearch, setRunSearch] = useState("");
+  const [retention, setRetention] = useState({ enabled: false, hours: 72 });
+  const [selectedRun, setSelectedRun] = useState<Json | null>(null);
+
+  const filteredRuns = useMemo(() => recentRuns.filter((r) => {
+    if (runFilter === "workflow" && r._legacy) return false;
+    if (runFilter === "legacy" && !r._legacy) return false;
+    if (runFilter !== "all" && runFilter !== "workflow" && runFilter !== "legacy" && r.trigger_type !== runFilter) return false;
+    const n = runSearch.trim().toLowerCase();
+    if (!n) return true;
+    return [r.order_id, r.trigger_type, r.status, r.error_message, JSON.stringify(r.step_results || {})].some((v) => String(v ?? "").toLowerCase().includes(n));
+  }), [recentRuns, runFilter, runSearch]);
+
+  const saveRetention = async () => {
+    const hours = Math.max(Number(retention.hours) || 72, 1);
+    const { error } = await db.from("app_settings").upsert({ key: "api_logs_retention", value: { enabled: retention.enabled, hours } }, { onConflict: "key" });
+    if (error) toast.error(error.message);
+    else { toast.success("Cleanup enregistré"); setRetention({ enabled: retention.enabled, hours }); }
+  };
+
+  const deleteRun = async (run: Json) => {
+    if (!confirm("Supprimer cette exécution ?")) return;
+    const table = run._legacy ? "livreur_api_logs" : "livreur_workflow_runs";
+    const id = run._legacy ? Number(String(run.id).replace("legacy-", "")) : run.id;
+    const { error } = await db.from(table).delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else { toast.success("Supprimé"); setSelectedRun(null); loadRuns(); }
+  };
 
   const active = workflows.find((w) => w.id === activeId) || null;
 
