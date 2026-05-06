@@ -280,144 +280,6 @@ export type Database = {
         }
         Relationships: []
       }
-      livreur_api_settings: {
-        Row: {
-          api_operations: Json
-          auth_config: Json
-          create_package_headers: Json
-          create_package_mapping: Json
-          create_package_method: string
-          create_package_url: string | null
-          created_at: string
-          is_active: boolean
-          livreur_id: string
-          polling_actor_field: string
-          polling_driver_name_field: string
-          polling_driver_phone_field: string
-          polling_enabled: boolean
-          polling_extra_fields_mapping: Json
-          polling_interval_minutes: number
-          polling_last_run_at: string | null
-          polling_message_field: string
-          polling_order_fields_mapping: Json
-          polling_reported_date_field: string
-          polling_scheduled_date_field: string
-          polling_status_field: string
-          polling_status_headers: Json
-          polling_status_mapping: Json
-          polling_status_method: string
-          polling_status_payload_mapping: Json
-          polling_status_url: string | null
-          polling_tracking_field: string
-          rate_limit_per_second: number
-          status_mapping: Json
-          updated_at: string
-          validation_rules: Json
-          webhook_actor_field: string
-          webhook_driver_name_field: string
-          webhook_driver_phone_field: string
-          webhook_enabled: boolean
-          webhook_extra_fields_mapping: Json
-          webhook_note_field: string
-          webhook_order_fields_mapping: Json
-          webhook_reported_date_field: string
-          webhook_scheduled_date_field: string
-          webhook_status_field: string
-          webhook_tracking_field: string
-          webhook_updates_current_status: boolean
-        }
-        Insert: {
-          api_operations?: Json
-          auth_config?: Json
-          create_package_headers?: Json
-          create_package_mapping?: Json
-          create_package_method?: string
-          create_package_url?: string | null
-          created_at?: string
-          is_active?: boolean
-          livreur_id: string
-          polling_actor_field?: string
-          polling_driver_name_field?: string
-          polling_driver_phone_field?: string
-          polling_enabled?: boolean
-          polling_extra_fields_mapping?: Json
-          polling_interval_minutes?: number
-          polling_last_run_at?: string | null
-          polling_message_field?: string
-          polling_order_fields_mapping?: Json
-          polling_reported_date_field?: string
-          polling_scheduled_date_field?: string
-          polling_status_field?: string
-          polling_status_headers?: Json
-          polling_status_mapping?: Json
-          polling_status_method?: string
-          polling_status_payload_mapping?: Json
-          polling_status_url?: string | null
-          polling_tracking_field?: string
-          rate_limit_per_second?: number
-          status_mapping?: Json
-          updated_at?: string
-          validation_rules?: Json
-          webhook_actor_field?: string
-          webhook_driver_name_field?: string
-          webhook_driver_phone_field?: string
-          webhook_enabled?: boolean
-          webhook_extra_fields_mapping?: Json
-          webhook_note_field?: string
-          webhook_order_fields_mapping?: Json
-          webhook_reported_date_field?: string
-          webhook_scheduled_date_field?: string
-          webhook_status_field?: string
-          webhook_tracking_field?: string
-          webhook_updates_current_status?: boolean
-        }
-        Update: {
-          api_operations?: Json
-          auth_config?: Json
-          create_package_headers?: Json
-          create_package_mapping?: Json
-          create_package_method?: string
-          create_package_url?: string | null
-          created_at?: string
-          is_active?: boolean
-          livreur_id?: string
-          polling_actor_field?: string
-          polling_driver_name_field?: string
-          polling_driver_phone_field?: string
-          polling_enabled?: boolean
-          polling_extra_fields_mapping?: Json
-          polling_interval_minutes?: number
-          polling_last_run_at?: string | null
-          polling_message_field?: string
-          polling_order_fields_mapping?: Json
-          polling_reported_date_field?: string
-          polling_scheduled_date_field?: string
-          polling_status_field?: string
-          polling_status_headers?: Json
-          polling_status_mapping?: Json
-          polling_status_method?: string
-          polling_status_payload_mapping?: Json
-          polling_status_url?: string | null
-          polling_tracking_field?: string
-          rate_limit_per_second?: number
-          status_mapping?: Json
-          updated_at?: string
-          validation_rules?: Json
-          webhook_actor_field?: string
-          webhook_driver_name_field?: string
-          webhook_driver_phone_field?: string
-          webhook_enabled?: boolean
-          webhook_extra_fields_mapping?: Json
-          webhook_note_field?: string
-          webhook_order_fields_mapping?: Json
-          webhook_reported_date_field?: string
-          webhook_scheduled_date_field?: string
-          webhook_status_field?: string
-          webhook_tracking_field?: string
-          webhook_updates_current_status?: boolean
-        }
-        Relationships: []
-      }
       livreur_scheduled_runs: {
         Row: {
           created_at: string
@@ -842,13 +704,11 @@ export type Database = {
           agent_pages: Json | null
           api_enabled: boolean
           api_token: string | null
-          authentication_config: Json | null
           bank_account_name: string | null
           bank_account_number: string | null
           cin: string | null
           city: string | null
           company_name: string | null
-          create_package_config: Json | null
           created_at: string
           full_name: string | null
           id: string
@@ -864,13 +724,11 @@ export type Database = {
           agent_pages?: Json | null
           api_enabled?: boolean
           api_token?: string | null
-          authentication_config?: Json | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           cin?: string | null
           city?: string | null
           company_name?: string | null
-          create_package_config?: Json | null
           created_at?: string
           full_name?: string | null
           id: string
@@ -886,13 +744,11 @@ export type Database = {
           agent_pages?: Json | null
           api_enabled?: boolean
           api_token?: string | null
-          authentication_config?: Json | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           cin?: string | null
           city?: string | null
           company_name?: string | null
-          create_package_config?: Json | null
           created_at?: string
           full_name?: string | null
           id?: string
