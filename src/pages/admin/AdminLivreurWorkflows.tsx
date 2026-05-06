@@ -800,7 +800,70 @@ const ValidateRulesEditor = ({ step, onChange }: { step: Json; onChange: (p: Jso
   );
 };
 
-const HttpStepEditor = ({ step, onChange, onImportCurl }: { step: Json; onChange: (p: Json) => void; onImportCurl: () => void }) => {
+const OPERATORS = [
+  { value: "eq", label: "= égal" },
+  { value: "neq", label: "≠ différent" },
+  { value: "gt", label: "> supérieur" },
+  { value: "gte", label: "≥ supérieur ou égal" },
+  { value: "lt", label: "< inférieur" },
+  { value: "lte", label: "≤ inférieur ou égal" },
+  { value: "contains", label: "contient" },
+  { value: "starts_with", label: "commence par" },
+  { value: "exists", label: "existe (non vide)" },
+  { value: "is_empty", label: "est vide" },
+  { value: "regex", label: "regex" },
+];
+
+const FilterStepEditor = ({ step, onChange }: { step: Json; onChange: (p: Json) => void }) => {
+  const config = step.config || {};
+  const conditions: Json[] = config.conditions || [];
+  const updateCond = (i: number, patch: Json) => {
+    const next = conditions.map((c, idx) => (idx === i ? { ...c, ...patch } : c));
+    onChange({ config: { ...config, conditions: next } });
+  };
+  const removeCond = (i: number) => onChange({ config: { ...config, conditions: conditions.filter((_, idx) => idx !== i) } });
+  const addCond = () => onChange({ config: { ...config, conditions: [...conditions, { left: "", operator: "eq", right: "" }] } });
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        <Label>Combinaison</Label>
+        <Select value={config.mode || "all"} onValueChange={(v) => onChange({ config: { ...config, mode: v } })}>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">ET (toutes vraies)</SelectItem>
+            <SelectItem value="any">OU (au moins une)</SelectItem>
+          </SelectContent>
+        </Select>
+        <Label>Si faux</Label>
+        <Select value={config.on_false || "stop"} onValueChange={(v) => onChange({ config: { ...config, on_false: v } })}>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="stop">Arrêter le workflow (succès)</SelectItem>
+            <SelectItem value="skip_rest">Sauter les étapes suivantes</SelectItem>
+            <SelectItem value="fail">Échouer le workflow</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        {conditions.map((c, i) => (
+          <div key={i} className="grid grid-cols-12 gap-2 items-center border rounded p-2 bg-muted/30">
+            <Input className="col-span-4 font-mono text-xs" placeholder="{{order.status}}" value={c.left ?? ""} onChange={(e) => updateCond(i, { left: e.target.value })} />
+            <Select value={c.operator || "eq"} onValueChange={(v) => updateCond(i, { operator: v })}>
+              <SelectTrigger className="col-span-3 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>{OPERATORS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+            </Select>
+            <Input className="col-span-4 font-mono text-xs" placeholder="Confirmé" value={c.right ?? ""} onChange={(e) => updateCond(i, { right: e.target.value })} disabled={c.operator === "exists" || c.operator === "is_empty"} />
+            <Button variant="ghost" size="icon" className="col-span-1" onClick={() => removeCond(i)}><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={addCond}><Plus className="h-3 w-3 mr-1" /> Ajouter condition</Button>
+      </div>
+      <div className="text-xs text-muted-foreground">Astuce: utilisez <code>{`{{order.field}}`}</code>, <code>{`{{steps.<id>.x}}`}</code>, <code>{`{{vars.x}}`}</code>.</div>
+    </div>
+  );
+};
+
+
   const config = step.config || {};
   const [bodyText, setBodyText] = useState(() => typeof config.body === "string" ? config.body : JSON.stringify(config.body || {}, null, 2));
   const [bodyMode, setBodyMode] = useState<"fields" | "json">(() => (config.body && typeof config.body === "object" && !Array.isArray(config.body)) ? "fields" : "json");
