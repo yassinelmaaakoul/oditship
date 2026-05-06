@@ -418,53 +418,6 @@ export type Database = {
         }
         Relationships: []
       }
-      livreur_scheduled_runs: {
-        Row: {
-          created_at: string
-          id: string
-          last_message: string | null
-          last_run_at: string | null
-          last_status: string | null
-          livreur_id: string
-          next_run_at: string | null
-          operation_key: string
-          trigger: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          last_message?: string | null
-          last_run_at?: string | null
-          last_status?: string | null
-          livreur_id: string
-          next_run_at?: string | null
-          operation_key: string
-          trigger: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          last_message?: string | null
-          last_run_at?: string | null
-          last_status?: string | null
-          livreur_id?: string
-          next_run_at?: string | null
-          operation_key?: string
-          trigger?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "livreur_scheduled_runs_livreur_id_fkey"
-            columns: ["livreur_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       order_status_history: {
         Row: {
           actor_label: string | null
