@@ -12,7 +12,7 @@ const LivreurDocApi = () => {
   const apiEnabled = profile?.api_enabled;
   const token = profile?.api_token as string | null;
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const webhookUrl = `https://${projectId}.supabase.co/functions/v1/livreur-webhook?livreur_id=${user?.id ?? ""}`;
+  const webhookUrl = `https://${projectId}.supabase.co/functions/v1/livreur-workflow-runner/webhook/${user?.id ?? ""}`;
 
   const copy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -38,45 +38,25 @@ const LivreurDocApi = () => {
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Token API</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           <div className="flex gap-2">
-            <Input readOnly className="font-mono text-sm" value={show ? (token || "—") : masked(token)} />
-            <Button variant="outline" size="icon" onClick={() => setShow((s) => !s)}>
-              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => token && copy(token, "Token")} disabled={!token}>
-              <Copy className="h-4 w-4" />
-            </Button>
+            <Input readOnly className="font-mono text-xs" value={show ? (token || "—") : masked(token)} />
+            <Button variant="ghost" size="icon" onClick={() => setShow(!show)}>{show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
+            <Button variant="outline" size="sm" onClick={() => token && copy(token, "Token")}><Copy className="h-4 w-4" /></Button>
           </div>
-          <p className="text-xs text-muted-foreground">Utilisez ce token dans l'en-tête <code className="bg-muted px-1 py-0.5 rounded">Authorization: Bearer ...</code></p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-lg">Webhook : mise à jour de statut</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">Webhook URL</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div>
-            <div className="text-sm font-semibold mb-1">Endpoint</div>
-            <div className="flex gap-2">
-              <Input readOnly className="font-mono text-xs" value={webhookUrl} />
-              <Button variant="outline" size="icon" onClick={() => copy(webhookUrl, "URL")}><Copy className="h-4 w-4" /></Button>
-            </div>
+          <div className="flex gap-2">
+            <Input readOnly className="font-mono text-xs" value={webhookUrl} />
+            <Button variant="outline" size="sm" onClick={() => copy(webhookUrl, "URL")}><Copy className="h-4 w-4" /></Button>
           </div>
-          <div>
-            <div className="text-sm font-semibold mb-1">Méthode</div>
-            <code className="bg-muted px-2 py-1 rounded text-xs">POST</code>
-          </div>
-          <div>
-            <div className="text-sm font-semibold mb-1">Corps JSON</div>
-            <pre className="bg-muted rounded p-3 text-xs overflow-x-auto">{`{
-  "tracking_number": "ODiT-XXXXXXXX",
-  "status": "Livré",
-  "note": "Optionnel"
-}`}</pre>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Statuts acceptés : Ramassé, Transit, En route, Reporté, Programmé, livré, Refusé, Annulé, Returned.
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Authentifiez-vous avec votre Token API en tant que <code>Bearer</code>. Les notifications déclenchent les workflows configurés.
+          </p>
         </CardContent>
       </Card>
     </div>
