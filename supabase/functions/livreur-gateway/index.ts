@@ -155,7 +155,6 @@ function normalizeCreateConfig(profileConfig: any, legacySettings: any) {
   };
 }
 
-// ✅ دالة مساعدة لتحويل النصوص التي تمثل JSON Array (إن وُجدت)
 function parseArrayStrings(obj: any): any {
   if (Array.isArray(obj)) {
     return obj.map((item) => parseArrayStrings(item));
@@ -193,11 +192,10 @@ async function sendRequest(config: JsonRecord, order: JsonRecord, context: JsonR
     ? renderObject(config.payload, context)
     : buildMappedPayload(order, config.payload_mapping ?? {}, context);
 
-  // ✅ تحويل النصوص التي تشبه JSON Array
   payload = parseArrayStrings(payload);
 
-  // ✅ معالجة خاصة لنقطة نهاية pickup: تحويل packages إلى مصفوفة إذا كانت نصاً
-  if (config.url?.includes("/pickup") && payload.packages && typeof payload.packages === "string") {
+  // ✅ التصحيح النهائي: تأكد من أن packages هي مصفوفة (لأي عملية pickup)
+  if (payload.packages && typeof payload.packages === "string") {
     payload.packages = [payload.packages];
   }
 
