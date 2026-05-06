@@ -73,12 +73,24 @@ function validationError(field: string, message: string) {
 }
 
 function validateOrder(order: JsonRecord, rules: JsonRecord) {
-  for (const [field, rule] of Object.entries(rules ?? {})) {
+  for (const [rawField, rule] of Object.entries(rules ?? {})) {
+    // Accept both "customer_phone" and "order.customer_phone" path formats
+    const field = rawField.startsWith("order.") ? rawField.slice(6) : rawField;
     const value = getPath(order, field);
+    const isEmpty = value === undefined || value === null || String(value).trim() === "";
+    if (rule?.required && isEmpty) throw validationError(field, `champ obligatoire`);
+    if (isEmpty) continue;
     if (rule?.min_alnum && alnumCount(value) < Number(rule.min_alnum)) throw validationError(field, `minimum ${rule.min_alnum} lettres ou chiffres`);
     if (rule?.min_length && String(value ?? "").trim().length < Number(rule.min_length)) throw validationError(field, `minimum ${rule.min_length} caractères`);
     if (rule?.digits && String(value ?? "").replace(/\D/g, "").length !== Number(rule.digits)) throw validationError(field, `doit contenir ${rule.digits} chiffres`);
     if (rule?.min !== undefined && Number(value) < Number(rule.min)) throw validationError(field, `minimum ${rule.min}`);
+    if (rule?.regex) {
+      try {
+        if (!new RegExp(String(rule.regex)).test(String(value))) throw validationError(field, `format invalide`);
+      } catch (e) {
+        if ((e as any)?.field) throw e;
+      }
+    }
   }
 }
 
