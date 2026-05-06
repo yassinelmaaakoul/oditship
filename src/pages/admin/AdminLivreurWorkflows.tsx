@@ -237,6 +237,57 @@ const AdminLivreurWorkflows = () => {
     } catch (e: any) { toast.error(e.message); } finally { setTestRunning(false); }
   };
 
+  const exportWorkflow = () => {
+    if (!active) return;
+    const payload = {
+      _type: "livreur_workflow",
+      _version: 1,
+      exported_at: new Date().toISOString(),
+      workflow: {
+        name: active.name,
+        description: active.description,
+        enabled: active.enabled,
+        is_default: active.is_default,
+        triggers: active.triggers,
+        steps: active.steps,
+        variables: active.variables,
+        settings: active.settings,
+      },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `workflow-${active.name.replace(/\s+/g, "_")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Workflow exporté");
+  };
+
+  const importWorkflow = async (file: File) => {
+    if (!livreurId) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const wf = parsed.workflow || parsed;
+      const { data, error } = await db.from("livreur_workflows").insert({
+        livreur_id: livreurId,
+        name: `${wf.name || "Import"} (copie)`,
+        description: wf.description ?? null,
+        enabled: wf.enabled ?? true,
+        is_default: false,
+        triggers: (wf.triggers || []).map((t: Json) => ({ ...t, id: newId() })),
+        steps: (wf.steps || []).map((s: Json) => ({ ...s, id: newId() })),
+        variables: wf.variables || {},
+        settings: wf.settings || {},
+      }).select().single();
+      if (error) throw error;
+      setWorkflows((p) => [...p, data]);
+      setActiveId(data.id);
+      toast.success("Workflow importé");
+    } catch (e: any) { toast.error("Import échoué: " + e.message); }
+  };
+
   if (loading) return <div className="p-8">Chargement...</div>;
 
   return (
