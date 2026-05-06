@@ -10,6 +10,9 @@ import { ChevronDown, Printer } from "lucide-react";
 import { printSticker } from "@/lib/printSticker";
 import { COLIS_PAGE_PRESET_KEY, defaultColisPagePreset, normalizeColisPagePreset, type ColisPagePreset } from "@/lib/colisPagePreset";
 import { ColisCanvasPage } from "@/components/dashboard/ColisCanvasPage";
+import { getAppSetting } from "@/lib/appSettingsCache";
+
+const ORDERS_COLUMNS = "id,customer_name,customer_phone,customer_address,customer_city,product_name,order_value,open_package,comment,status,tracking_number,external_tracking_number,status_note,postponed_date,scheduled_date,created_at,vendeur_id,assigned_livreur_id,driver_name,driver_phone";
 
 const LivreurColis = () => {
   const [orders, setOrders] = useState<any[]>([]);
