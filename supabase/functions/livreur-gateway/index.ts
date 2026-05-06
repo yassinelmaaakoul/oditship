@@ -155,6 +155,7 @@ function normalizeCreateConfig(profileConfig: any, legacySettings: any) {
   };
 }
 
+// دالة قوية لتحويل النصوص التي تمثل JSON Array (حتى لو كانت محاطة بعلامات اقتباس أو بها escape)
 function parseArrayStrings(obj: any): any {
   if (Array.isArray(obj)) {
     return obj.map((item) => parseArrayStrings(item));
@@ -168,16 +169,18 @@ function parseArrayStrings(obj: any): any {
   }
   if (typeof obj === "string") {
     let trimmed = obj.trim();
+    // إزالة علامات الاقتباس المزدوجة الخارجية
     if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
       trimmed = trimmed.slice(1, -1);
     }
+    // إزالة backslashes من الأقواس والاقتباسات
     trimmed = trimmed.replace(/\\([\[\]\"])/g, "$1");
     if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) return parsed;
       } catch (e) {
-        // ignore
+        // ليس JSON صالحاً، نتركه كنص
       }
     }
   }
@@ -192,10 +195,11 @@ async function sendRequest(config: JsonRecord, order: JsonRecord, context: JsonR
     ? renderObject(config.payload, context)
     : buildMappedPayload(order, config.payload_mapping ?? {}, context);
 
+  // تحويل النصوص التي تشبه JSON Array
   payload = parseArrayStrings(payload);
 
-  // ✅ التصحيح النهائي: تأكد من أن packages هي مصفوفة (لأي عملية pickup)
-  if (payload.packages && typeof payload.packages === "string") {
+  // معالجة خاصة لنقطة نهاية pickup: تحويل packages إلى مصفوفة إذا كانت نصاً
+  if (config.url?.includes("/pickup") && payload.packages && typeof payload.packages === "string") {
     payload.packages = [payload.packages];
   }
 
