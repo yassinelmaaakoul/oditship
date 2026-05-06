@@ -279,6 +279,7 @@ const AdminLivreurWorkflows = () => {
 
             <TabsContent value="builder" className="flex-1 overflow-auto p-4 space-y-3">
               <Textarea value={active.description || ""} onChange={(e) => updateActive({ description: e.target.value })} placeholder="Description du workflow..." className="min-h-16" />
+              <OutputDestinationPanel steps={active.steps} />
               <div className="space-y-2">
                 {active.steps.map((step, idx) => (
                   <StepCard
