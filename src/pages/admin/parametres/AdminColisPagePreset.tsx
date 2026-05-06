@@ -12,6 +12,7 @@ import {
   defaultColisPagePreset, normalizeColisPagePreset, type ColisPagePreset,
 } from "@/lib/colisPagePreset";
 import { ColisCanvasPage, type ColisPageOrder } from "@/components/dashboard/ColisCanvasPage";
+import { invalidateAppSetting } from "@/lib/appSettingsCache";
 
 const SAMPLE_ORDERS: ColisPageOrder[] = [
   { id: 1, customer_name: "Mme ABOUTIKA", customer_phone: "0612345678", customer_city: "Casablanca", customer_address: "Rue principale", product_name: "Chemise oversize", order_value: 245, status: "Retourné", tracking_number: "ODiT-1042", external_tracking_number: null, created_at: new Date(Date.now() - 5*60*1000).toISOString() },
