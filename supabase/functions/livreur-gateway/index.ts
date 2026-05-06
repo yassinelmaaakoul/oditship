@@ -54,25 +54,30 @@ function resolveTemplatePath(path: string, context: JsonRecord) {
 
 function renderObject(value: any, context: JsonRecord): any {
   if (Array.isArray(value)) return value.map((item) => renderObject(item, context));
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, renderObject(item, context)]));
+  if (value && typeof value === "object")
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, renderObject(item, context)]));
   return resolveTemplate(value, context);
 }
 
 function buildMappedPayload(order: JsonRecord, mapping: JsonRecord, context: JsonRecord) {
   const payload: JsonRecord = {};
-  Object.entries(mapping ?? {}).forEach(([target, source]) => setPath(payload, target, resolveTemplate(source, { ...context, order })));
+  Object.entries(mapping ?? {}).forEach(([target, source]) =>
+    setPath(payload, target, resolveTemplate(source, { ...context, order })),
+  );
   return payload;
 }
 
 function maskSensitiveHeaders(headers: JsonRecord = {}) {
-  return Object.fromEntries(Object.entries(headers).map(([key, value]) => {
-    const name = key.toLowerCase();
-    if (name.includes("authorization") || name.includes("token") || name.includes("secret") || name.includes("key")) {
-      const text = String(value ?? "");
-      return [key, text ? `${text.slice(0, 8)}••••${text.slice(-4)}` : "••••"];
-    }
-    return [key, value];
-  }));
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => {
+      const name = key.toLowerCase();
+      if (name.includes("authorization") || name.includes("token") || name.includes("secret") || name.includes("key")) {
+        const text = String(value ?? "");
+        return [key, text ? `${text.slice(0, 8)}••••${text.slice(-4)}` : "••••"];
+      }
+      return [key, value];
+    }),
+  );
 }
 
 function createEndpointInfo(config: JsonRecord, payload: JsonRecord, label = "Create package") {
@@ -96,10 +101,14 @@ function alnumCount(value: unknown) {
 function validateOrder(order: JsonRecord, rules: JsonRecord) {
   for (const [field, rule] of Object.entries(rules ?? {})) {
     const value = getPath(order, field);
-    if (rule?.min_alnum && alnumCount(value) < Number(rule.min_alnum)) throw new Error(`${field} must contain at least ${rule.min_alnum} letters or digits`);
-    if (rule?.min_length && String(value ?? "").trim().length < Number(rule.min_length)) throw new Error(`${field} must contain at least ${rule.min_length} characters`);
-    if (rule?.digits && String(value ?? "").replace(/\D/g, "").length !== Number(rule.digits)) throw new Error(`${field} must contain ${rule.digits} digits`);
-    if (rule?.min !== undefined && Number(value) < Number(rule.min)) throw new Error(`${field} must be greater than or equal to ${rule.min}`);
+    if (rule?.min_alnum && alnumCount(value) < Number(rule.min_alnum))
+      throw new Error(`${field} must contain at least ${rule.min_alnum} letters or digits`);
+    if (rule?.min_length && String(value ?? "").trim().length < Number(rule.min_length))
+      throw new Error(`${field} must contain at least ${rule.min_length} characters`);
+    if (rule?.digits && String(value ?? "").replace(/\D/g, "").length !== Number(rule.digits))
+      throw new Error(`${field} must contain ${rule.digits} digits`);
+    if (rule?.min !== undefined && Number(value) < Number(rule.min))
+      throw new Error(`${field} must be greater than or equal to ${rule.min}`);
   }
 }
 
@@ -107,7 +116,9 @@ async function authenticate(order: JsonRecord, authConfig: JsonRecord | null) {
   if (!authConfig || authConfig.type === "none" || !authConfig.url) return { token: null, auth: null };
   const context = { order, token: null, auth: null };
   const headers = renderObject(authConfig.headers ?? {}, context);
-  const payload = authConfig.payload ? renderObject(authConfig.payload, context) : buildMappedPayload(order, authConfig.payload_mapping ?? {}, context);
+  const payload = authConfig.payload
+    ? renderObject(authConfig.payload, context)
+    : buildMappedPayload(order, authConfig.payload_mapping ?? {}, context);
   const response = await fetch(authConfig.url, {
     method: String(authConfig.method || "POST").toUpperCase(),
     headers: { "Content-Type": "application/json", ...headers },
@@ -115,8 +126,13 @@ async function authenticate(order: JsonRecord, authConfig: JsonRecord | null) {
   });
   const text = await response.text();
   let parsed: any = {};
-  try { parsed = JSON.parse(text); } catch { parsed = { raw: text }; }
-  if (!response.ok) throw new Error(`Authentication ${response.status}: ${parsed?.description || parsed?.message || text}`);
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = { raw: text };
+  }
+  if (!response.ok)
+    throw new Error(`Authentication ${response.status}: ${parsed?.description || parsed?.message || text}`);
   const token = getPath(parsed, authConfig.response_token_path || "token");
   if (!token) throw new Error("Authentication: missing token in response");
   return { token: String(token), auth: parsed };
@@ -139,21 +155,76 @@ function normalizeCreateConfig(profileConfig: any, legacySettings: any) {
   };
 }
 
+// ✅ دالة مساعدة لتحويل النصوص التي تمثل JSON Array إلى مصفوفات حقيقية
+function parseArrayStrings(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map((item) => parseArrayStrings(item));
+  }
+  if (obj && typeof obj === "object") {
+    const newObj: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      newObj[key] = parseArrayStrings(value);
+    }
+    return newObj;
+  }
+  if (typeof obj === "string") {
+    const trimmed = obj.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        // ليس JSON صحيح، نتركه كنص
+      }
+    }
+  }
+  return obj;
+}
+
 async function sendRequest(config: JsonRecord, order: JsonRecord, context: JsonRecord, label = "Create package") {
   if (!config?.url) throw new Error(`${label} URL is missing`);
   const method = String(config.method || "POST").toUpperCase();
   const headers = renderObject(config.headers ?? {}, context);
-  const payload = config.payload ? renderObject(config.payload, context) : buildMappedPayload(order, config.payload_mapping ?? {}, context);
-  const response = await fetch(config.url, { method, headers: { "Content-Type": "application/json", ...headers }, body: method === "GET" ? undefined : JSON.stringify(payload) });
+  let payload = config.payload
+    ? renderObject(config.payload, context)
+    : buildMappedPayload(order, config.payload_mapping ?? {}, context);
+
+  // ✅ تحويل أي نص يبدو كمصفوفة JSON إلى مصفوفة حقيقية
+  payload = parseArrayStrings(payload);
+
+  const response = await fetch(config.url, {
+    method,
+    headers: { "Content-Type": "application/json", ...headers },
+    body: method === "GET" ? undefined : JSON.stringify(payload),
+  });
   const text = await response.text();
   let parsed: any = {};
-  try { parsed = JSON.parse(text); } catch { parsed = { raw: text }; }
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = { raw: text };
+  }
   const exchange = {
-    sending: { direction: "outgoing", label, method, url: config.url, headers: maskSensitiveHeaders({ "Content-Type": "application/json", ...headers }), payload: method === "GET" ? null : payload },
-    reception: { direction: "incoming_response", status_code: response.status, ok: response.ok, headers: maskSensitiveHeaders(Object.fromEntries(response.headers.entries())), body: parsed },
+    sending: {
+      direction: "outgoing",
+      label,
+      method,
+      url: config.url,
+      headers: maskSensitiveHeaders({ "Content-Type": "application/json", ...headers }),
+      payload: method === "GET" ? null : payload,
+    },
+    reception: {
+      direction: "incoming_response",
+      status_code: response.status,
+      ok: response.ok,
+      headers: maskSensitiveHeaders(Object.fromEntries(response.headers.entries())),
+      body: parsed,
+    },
   };
   if (!response.ok) {
-    const err = new Error(`${label} ${response.status}: ${parsed?.description || parsed?.message || text}`) as Error & { exchange?: JsonRecord };
+    const err = new Error(`${label} ${response.status}: ${parsed?.description || parsed?.message || text}`) as Error & {
+      exchange?: JsonRecord;
+    };
     err.exchange = exchange;
     throw err;
   }
@@ -181,15 +252,23 @@ Deno.serve(async (req) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const ANON = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY")!;
   const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const userClient = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } });
+  const userClient = createClient(SUPABASE_URL, ANON, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false },
+  });
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false, autoRefreshToken: false } });
 
   const { data: userData, error: userErr } = await userClient.auth.getUser();
   if (userErr || !userData.user) return jsonResponse({ error: "Invalid session" }, 401);
 
   let body: { order_id?: number; livreur_id?: string };
-  try { body = await req.json(); } catch { return jsonResponse({ error: "Invalid JSON body" }, 400); }
-  if (!body.order_id || typeof body.order_id !== "number") return jsonResponse({ error: "order_id (number) required" }, 400);
+  try {
+    body = await req.json();
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+  if (!body.order_id || typeof body.order_id !== "number")
+    return jsonResponse({ error: "order_id (number) required" }, 400);
 
   const { data: order } = await admin.from("orders").select("*").eq("id", body.order_id).single();
   if (!order) return jsonResponse({ error: "Order not found" }, 404);
@@ -203,9 +282,15 @@ Deno.serve(async (req) => {
   const isOwner = order.vendeur_id === callerId;
   const isAgent = callerProfile?.agent_of && callerProfile.agent_of === order.vendeur_id;
   if (!isOwner && !isAgent && !isAdmin) return jsonResponse({ error: "Forbidden" }, 403);
-  if (order.status !== "Confirmé") return jsonResponse({ error: `Order must be in 'Confirmé' (current: ${order.status})` }, 400);
+  if (order.status !== "Confirmé")
+    return jsonResponse({ error: `Order must be in 'Confirmé' (current: ${order.status})` }, 400);
 
-  const { data: hubCity } = await admin.from("hub_cities").select("hub_id").eq("city_name", order.customer_city).limit(1).maybeSingle();
+  const { data: hubCity } = await admin
+    .from("hub_cities")
+    .select("hub_id")
+    .eq("city_name", order.customer_city)
+    .limit(1)
+    .maybeSingle();
   if (!hubCity) {
     const msg = `City "${order.customer_city}" is not assigned to any hub. Contact administrator.`;
     await admin.from("orders").update({ api_sync_status: "failed", api_sync_error: msg }).eq("id", order.id);
@@ -214,7 +299,11 @@ Deno.serve(async (req) => {
 
   let livreurId = body.livreur_id;
   if (!livreurId) {
-    const { data: hubLivreur } = await admin.from("hub_livreur").select("livreur_id").eq("hub_id", hubCity.hub_id).maybeSingle();
+    const { data: hubLivreur } = await admin
+      .from("hub_livreur")
+      .select("livreur_id")
+      .eq("hub_id", hubCity.hub_id)
+      .maybeSingle();
     livreurId = hubLivreur?.livreur_id;
   }
   if (!livreurId) {
@@ -224,7 +313,11 @@ Deno.serve(async (req) => {
   }
 
   const [{ data: livreur }, { data: legacySettings }] = await Promise.all([
-    admin.from("profiles").select("id, api_enabled, authentication_config, create_package_config").eq("id", livreurId).single(),
+    admin
+      .from("profiles")
+      .select("id, api_enabled, authentication_config, create_package_config")
+      .eq("id", livreurId)
+      .single(),
     admin.from("livreur_api_settings").select("*").eq("livreur_id", livreurId).maybeSingle(),
   ]);
   if (!livreur) return jsonResponse({ error: "Delivery profile missing" }, 404);
@@ -240,12 +333,39 @@ Deno.serve(async (req) => {
   };
 
   if (!livreur.api_enabled) {
-    const trackingNumber = order.tracking_number || `ODiT-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
-    const { error } = await admin.from("orders").update({ tracking_number: trackingNumber, status: "Pickup", assigned_livreur_id: livreur.id, hub_id: hubCity.hub_id, api_sync_status: "not_required", api_sync_error: null }).eq("id", order.id);
+    const trackingNumber =
+      order.tracking_number || `ODiT-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+    const { error } = await admin
+      .from("orders")
+      .update({
+        tracking_number: trackingNumber,
+        status: "Pickup",
+        assigned_livreur_id: livreur.id,
+        hub_id: hubCity.hub_id,
+        api_sync_status: "not_required",
+        api_sync_error: null,
+      })
+      .eq("id", order.id);
     if (error) return jsonResponse({ error: error.message }, 500);
     await insertPickupHistory(`Pickup — tracking interne ${trackingNumber}`);
-    await logApi(admin, { order_id: order.id, livreur_id: livreur.id, event_type: "create_package", status: "success", message: "Internal tracking generated because driver API is disabled", details: { mode: "internal_tracking", webhook_enabled: legacySettings?.webhook_enabled === true, generated_tracking: trackingNumber } });
-    return jsonResponse({ ok: true, mode: "internal_tracking", message: "External API disabled for this driver; internal tracking generated.", tracking_number: trackingNumber });
+    await logApi(admin, {
+      order_id: order.id,
+      livreur_id: livreur.id,
+      event_type: "create_package",
+      status: "success",
+      message: "Internal tracking generated because driver API is disabled",
+      details: {
+        mode: "internal_tracking",
+        webhook_enabled: legacySettings?.webhook_enabled === true,
+        generated_tracking: trackingNumber,
+      },
+    });
+    return jsonResponse({
+      ok: true,
+      mode: "internal_tracking",
+      message: "External API disabled for this driver; internal tracking generated.",
+      tracking_number: trackingNumber,
+    });
   }
 
   let lastEndpoint: JsonRecord | null = null;
@@ -258,17 +378,28 @@ Deno.serve(async (req) => {
 
     const authResult = await authenticate(order, authConfig);
     const context = { order, token: authResult.token, auth: authResult.auth };
-    if (authResult.token && authConfig?.token_header) createConfig.headers = { ...(createConfig.headers ?? {}), [authConfig.token_header]: `${authConfig.token_prefix ?? "Bearer "}{{token}}` };
-    const endpoint = createEndpointInfo(createConfig, createConfig.payload ? renderObject(createConfig.payload, context) : buildMappedPayload(order, createConfig.payload_mapping ?? {}, context));
+    if (authResult.token && authConfig?.token_header)
+      createConfig.headers = {
+        ...(createConfig.headers ?? {}),
+        [authConfig.token_header]: `${authConfig.token_prefix ?? "Bearer "}{{token}}`,
+      };
+    const endpoint = createEndpointInfo(
+      createConfig,
+      createConfig.payload
+        ? renderObject(createConfig.payload, context)
+        : buildMappedPayload(order, createConfig.payload_mapping ?? {}, context),
+    );
     lastEndpoint = endpoint;
 
-    const delayMs = Math.ceil(1000 / Math.max(Number(settings?.rate_limit_per_second) || Number(createConfig.rate_limit_per_second) || 5, 0.1));
+    const delayMs = Math.ceil(
+      1000 / Math.max(Number(settings?.rate_limit_per_second) || Number(createConfig.rate_limit_per_second) || 5, 0.1),
+    );
     const operationsList = createConfig.operations ?? [];
     const beforeOps = operationsList.filter((op: any) => op?.trigger === "before_create" && op?.enabled !== false);
     const afterOps = operationsList.filter((op: any) => {
       if (op?.enabled === false) return false;
       const t = op?.trigger ?? "after_create";
-      return t === "after_create" || t === "on_status_change" && (op?.trigger_status ?? "Pickup") === "Pickup";
+      return t === "after_create" || (t === "on_status_change" && (op?.trigger_status ?? "Pickup") === "Pickup");
     });
 
     const exchanges: any[] = [];
@@ -282,25 +413,78 @@ Deno.serve(async (req) => {
     exchanges.push(createResult.exchange);
     for (const operation of afterOps) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
-      const operationResult = await sendRequest(operation, order, { ...context, create_response: result }, operation.name || "After-create op");
+      const operationResult = await sendRequest(
+        operation,
+        order,
+        { ...context, create_response: result },
+        operation.name || "After-create op",
+      );
       exchanges.push(operationResult.exchange);
     }
 
     const trackingPath = createConfig.response_tracking_path || createConfig.tracking_path || "trackingID";
-    const tracking = getPath(result, trackingPath) || result.trackingID || result.tracking_id || result.trackingNumber || result.tracking_number || result.id;
+    const tracking =
+      getPath(result, trackingPath) ||
+      result.trackingID ||
+      result.tracking_id ||
+      result.trackingNumber ||
+      result.tracking_number ||
+      result.id;
     if (!tracking) throw new Error(`Create package: missing tracking id in response path '${trackingPath}'`);
 
-    const { error } = await admin.from("orders").update({ external_tracking_number: String(tracking), status: "Pickup", assigned_livreur_id: livreur.id, hub_id: hubCity.hub_id, api_sync_status: "success", api_sync_error: null }).eq("id", order.id);
-    if (error) return jsonResponse({ error: `Provider succeeded but database update failed: ${error.message}`, tracking_id: String(tracking) }, 500);
+    const { error } = await admin
+      .from("orders")
+      .update({
+        external_tracking_number: String(tracking),
+        status: "Pickup",
+        assigned_livreur_id: livreur.id,
+        hub_id: hubCity.hub_id,
+        api_sync_status: "success",
+        api_sync_error: null,
+      })
+      .eq("id", order.id);
+    if (error)
+      return jsonResponse(
+        { error: `Provider succeeded but database update failed: ${error.message}`, tracking_id: String(tracking) },
+        500,
+      );
     await insertPickupHistory(`Pickup — tracking ${String(tracking)}`);
-    await logApi(admin, { order_id: order.id, livreur_id: livreur.id, event_type: "create_package", status: "success", message: `Tracking ${String(tracking)}`, details: { endpoint, sending: exchanges[0]?.sending, reception: exchanges[0]?.reception, exchanges, tracking_path: trackingPath } });
+    await logApi(admin, {
+      order_id: order.id,
+      livreur_id: livreur.id,
+      event_type: "create_package",
+      status: "success",
+      message: `Tracking ${String(tracking)}`,
+      details: {
+        endpoint,
+        sending: exchanges[0]?.sending,
+        reception: exchanges[0]?.reception,
+        exchanges,
+        tracking_path: trackingPath,
+      },
+    });
 
     return jsonResponse({ ok: true, mode: "external_api", tracking_id: String(tracking) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown delivery API error";
     await admin.from("orders").update({ api_sync_status: "failed", api_sync_error: message }).eq("id", order.id);
     const exchange = (error as Error & { exchange?: JsonRecord })?.exchange ?? null;
-    await logApi(admin, { order_id: order.id, livreur_id: livreurId, event_type: "create_package", status: "failed", message, details: { endpoint: lastEndpoint, sending: exchange?.sending ?? null, reception: exchange?.reception ?? null, customer_city: order.customer_city } });
-    return jsonResponse({ error: "Commande refusée par les règles ou l'API du livreur. Contactez l'administration." }, 502);
+    await logApi(admin, {
+      order_id: order.id,
+      livreur_id: livreurId,
+      event_type: "create_package",
+      status: "failed",
+      message,
+      details: {
+        endpoint: lastEndpoint,
+        sending: exchange?.sending ?? null,
+        reception: exchange?.reception ?? null,
+        customer_city: order.customer_city,
+      },
+    });
+    return jsonResponse(
+      { error: "Commande refusée par les règles ou l'API du livreur. Contactez l'administration." },
+      502,
+    );
   }
 });
