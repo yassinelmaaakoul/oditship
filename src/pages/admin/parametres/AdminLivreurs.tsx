@@ -561,7 +561,7 @@ const ApiOperationsEditor = ({ value, onChange }: { value: string; onChange: (va
               )}
 
               {(trigger === "scheduled" || trigger === "recurring") && (
-                <p className="text-[11px] text-amber-600 dark:text-amber-400">⚠️ Nécessite l'activation du planificateur côté serveur (cron).</p>
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ Planificateur actif (exécution toutes les minutes).</p>
               )}
             </div>
 
