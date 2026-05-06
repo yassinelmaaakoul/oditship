@@ -45,7 +45,7 @@ const AdminColisPagePreset = () => {
     );
     setSaving(false);
     if (error) toast.error(error.message);
-    else toast.success("Page template saved");
+    else { invalidateAppSetting(COLIS_PAGE_PRESET_KEY); toast.success("Page template saved"); }
   };
 
   return (
