@@ -843,21 +843,14 @@ const StepCard = ({ step, index, total, onChange, onRemove, onMove, onImportCurl
             </div>
           )}
           {step.type === "update_order" && (
-            <div>
-              <Label>Champs à mettre à jour</Label>
-              <KeyValueEditor value={step.config?.updates || {}} onChange={(v) => onChange({ config: { ...step.config, updates: v } })} />
-            </div>
+            <KeyValueOrJsonEditor
+              label="Champs à mettre à jour"
+              value={step.config?.updates || {}}
+              onChange={(v) => onChange({ config: { ...step.config, updates: v } })}
+            />
           )}
           {step.type === "log_status" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Nouveau statut</Label>
-                <Select value={step.config?.new_status || "Pickup"} onValueChange={(v) => onChange({ config: { ...step.config, new_status: v } })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div><Label>Note</Label><Input value={step.config?.note || ""} onChange={(e) => onChange({ config: { ...step.config, note: e.target.value } })} /></div>
-            </div>
+            <LogStatusEditor step={step} onChange={onChange} />
           )}
           {step.type === "validate" && (
             <ValidateRulesEditor step={step} onChange={onChange} />
