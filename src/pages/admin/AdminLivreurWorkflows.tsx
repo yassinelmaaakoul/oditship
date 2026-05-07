@@ -395,6 +395,8 @@ const AdminLivreurWorkflows = () => {
               <span className="text-sm">{active.enabled ? "Activé" : "Désactivé"}</span>
             </div>
             <div className="flex-1" />
+            <Button variant="outline" size="sm" onClick={() => setTutorialOpen(true)}><BookOpen className="h-4 w-4 mr-1" /> Tutoriel</Button>
+            <Button variant="outline" size="sm" onClick={() => insertOlivraisonPollingPreset()}><Sparkles className="h-4 w-4 mr-1" /> Preset Olivraison</Button>
             <Button variant="outline" size="sm" onClick={() => { setCurlTargetStepId(null); setCurlOpen(true); }}><Copy className="h-4 w-4 mr-1" /> Import cURL</Button>
             <Button variant="outline" size="sm" onClick={exportWorkflow}><Download className="h-4 w-4 mr-1" /> Export</Button>
             <label className="inline-flex">
