@@ -408,6 +408,18 @@ Deno.serve(async (req) => {
 
     if (action === "scheduled_tick") {
       // Called by cron every minute
+      // Auto-cleanup old runs/logs based on app_settings.api_logs_retention
+      try {
+        const { data: setting } = await admin.from("app_settings").select("value").eq("key", "api_logs_retention").maybeSingle();
+        const v = (setting?.value || {}) as any;
+        if (v?.enabled) {
+          const hours = Math.max(Number(v.hours) || 72, 1);
+          const cutoff = new Date(Date.now() - hours * 3600000).toISOString();
+          await admin.from("livreur_workflow_runs").delete().lt("started_at", cutoff);
+          await admin.from("livreur_api_logs").delete().lt("created_at", cutoff);
+        }
+      } catch (_e) { /* ignore cleanup errors */ }
+
       const { data: workflows } = await admin.from("livreur_workflows").select("*").eq("enabled", true);
       const now = new Date();
       let executed = 0;
