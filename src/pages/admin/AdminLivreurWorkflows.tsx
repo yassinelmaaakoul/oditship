@@ -1103,26 +1103,143 @@ const KeyValueEditor = ({ value, onChange, placeholderK, placeholderV }: { value
 
 const RunCard = ({ run }: { run: Json }) => {
   const [open, setOpen] = useState(false);
+  const stepResults: Json[] = Array.isArray(run.step_results) ? run.step_results : [];
   return (
     <Card className="overflow-hidden">
       <button className="w-full flex items-center gap-3 p-3 text-left" onClick={() => setOpen(!open)}>
         <span className={`h-2 w-2 rounded-full ${run.status === "success" ? "bg-green-500" : "bg-destructive"}`} />
         <span className="font-medium text-sm">{run.trigger_type}</span>
         {run.order_id && <Badge variant="outline">#{run.order_id}</Badge>}
-        {run._legacy && <Badge variant="secondary" className="text-[10px]">legacy</Badge>}
+        {run.is_test && <Badge variant="secondary" className="text-[10px]">test</Badge>}
         <span className="text-xs text-muted-foreground flex-1">{new Date(run.started_at).toLocaleString()}</span>
-        <span className="text-xs text-muted-foreground">{run.duration_ms}ms</span>
+        <span className="text-xs text-muted-foreground">{run.duration_ms ?? 0}ms</span>
+        <Badge variant={run.status === "success" ? "default" : "destructive"}>{run.status}</Badge>
         <ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="p-3 border-t bg-muted/30">
-          {run.error_message && <div className="text-destructive text-sm mb-2">{run.error_message}</div>}
-          <pre className="text-xs overflow-auto max-h-64">{JSON.stringify(run.step_results, null, 2)}</pre>
+        <div className="p-3 border-t bg-muted/30 space-y-3 text-xs">
+          {run.error_message && (
+            <div className="bg-destructive/10 text-destructive p-2 rounded">
+              <div className="font-semibold mb-1">Message d'erreur complet</div>
+              <pre className="whitespace-pre-wrap break-all">{run.error_message}</pre>
+            </div>
+          )}
+          {run.trigger_payload && Object.keys(run.trigger_payload).length > 0 && (
+            <details>
+              <summary className="cursor-pointer font-medium">📥 Payload du trigger (reçu)</summary>
+              <pre className="bg-background p-2 rounded mt-1 overflow-auto max-h-48">{JSON.stringify(run.trigger_payload, null, 2)}</pre>
+            </details>
+          )}
+          <div className="space-y-2">
+            <div className="font-medium">Étapes ({stepResults.length})</div>
+            {stepResults.map((s: Json, i: number) => {
+              const ex = (s.exchanges && s.exchanges[0]) || s.exchange;
+              return (
+                <details key={i} className="border rounded bg-background">
+                  <summary className="cursor-pointer p-2 flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${s.status === "success" ? "bg-green-500" : s.status === "failed" ? "bg-destructive" : "bg-muted-foreground"}`} />
+                    <span className="font-medium">{i + 1}. {s.name || s.id}</span>
+                    <Badge variant="outline" className="text-[10px]">{s.type}</Badge>
+                    <span className="ml-auto text-muted-foreground">{s.status}</span>
+                  </summary>
+                  <div className="p-2 space-y-2 border-t">
+                    {ex && (
+                      <>
+                        <div><span className="font-semibold">URL endpoint:</span> <code className="break-all">{ex.request?.method} {ex.request?.url}</code></div>
+                        <div><span className="font-semibold">Status réception:</span> <code>{ex.response?.status}</code> · {ex.duration_ms}ms</div>
+                        <details>
+                          <summary className="cursor-pointer">Headers (request / response)</summary>
+                          <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-40">{JSON.stringify({ request: ex.request?.headers, response: ex.response?.headers }, null, 2)}</pre>
+                        </details>
+                        <details>
+                          <summary className="cursor-pointer">Body envoyé (payload request)</summary>
+                          <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-40">{JSON.stringify(ex.request?.body, null, 2)}</pre>
+                        </details>
+                        <details open={s.status === "failed"}>
+                          <summary className="cursor-pointer">Body reçu (réponse)</summary>
+                          <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-60">{JSON.stringify(ex.response?.body, null, 2)}</pre>
+                        </details>
+                      </>
+                    )}
+                    {s.output && !ex && (
+                      <details><summary className="cursor-pointer">Output</summary>
+                        <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-40">{JSON.stringify(s.output, null, 2)}</pre>
+                      </details>
+                    )}
+                    {s.error && (
+                      <div className="bg-destructive/10 text-destructive p-2 rounded">
+                        <div className="font-semibold">Erreur étape</div>
+                        <pre className="whitespace-pre-wrap break-all">{s.error}</pre>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+          <details>
+            <summary className="cursor-pointer text-muted-foreground">JSON brut</summary>
+            <pre className="overflow-auto max-h-64 mt-1">{JSON.stringify(run, null, 2)}</pre>
+          </details>
         </div>
       )}
     </Card>
   );
 };
+
+const KeyValueOrJsonEditor = ({ label, value, onChange }: { label: string; value: Json; onChange: (v: Json) => void }) => {
+  const [mode, setMode] = useState<"fields" | "json">("fields");
+  const [text, setText] = useState(() => JSON.stringify(value || {}, null, 2));
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        <div className="flex gap-1">
+          <Button type="button" size="sm" variant={mode === "fields" ? "default" : "outline"} onClick={() => setMode("fields")}>Champs</Button>
+          <Button type="button" size="sm" variant={mode === "json" ? "default" : "outline"} onClick={() => { setText(JSON.stringify(value || {}, null, 2)); setMode("json"); }}>JSON</Button>
+        </div>
+      </div>
+      {mode === "fields" ? (
+        <KeyValueEditor value={value} onChange={onChange} />
+      ) : (
+        <Textarea className="font-mono text-xs" rows={8} value={text} onChange={(e) => {
+          setText(e.target.value);
+          try { onChange(JSON.parse(e.target.value)); } catch {}
+        }} />
+      )}
+    </div>
+  );
+};
+
+const LogStatusEditor = ({ step, onChange }: { step: Json; onChange: (p: Json) => void }) => {
+  const [mode, setMode] = useState<"fields" | "json">("fields");
+  const [text, setText] = useState(() => JSON.stringify(step.config || {}, null, 2));
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>Configuration</Label>
+        <div className="flex gap-1">
+          <Button type="button" size="sm" variant={mode === "fields" ? "default" : "outline"} onClick={() => setMode("fields")}>Champs</Button>
+          <Button type="button" size="sm" variant={mode === "json" ? "default" : "outline"} onClick={() => { setText(JSON.stringify(step.config || {}, null, 2)); setMode("json"); }}>JSON</Button>
+        </div>
+      </div>
+      {mode === "fields" ? (
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label>Nouveau statut</Label>
+            <Input value={step.config?.new_status || ""} onChange={(e) => onChange({ config: { ...step.config, new_status: e.target.value } })} placeholder="Pickup ou {{vars.status}}" />
+          </div>
+          <div><Label>Note</Label><Input value={step.config?.note || ""} onChange={(e) => onChange({ config: { ...step.config, note: e.target.value } })} /></div>
+        </div>
+      ) : (
+        <Textarea className="font-mono text-xs" rows={6} value={text} onChange={(e) => {
+          setText(e.target.value);
+          try { onChange({ config: JSON.parse(e.target.value) }); } catch {}
+        }} />
+      )}
+    </div>
+  );
+};
+
 
 const WebhookTriggerInfo = () => {
   const { livreurId } = useParams<{ livreurId: string }>();
