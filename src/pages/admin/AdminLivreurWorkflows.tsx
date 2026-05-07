@@ -491,30 +491,39 @@ const AdminLivreurWorkflows = () => {
                   <Select value={runFilter} onValueChange={setRunFilter}>
                     <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Toutes</SelectItem>
-                      <SelectItem value="workflow">Workflow uniquement</SelectItem>
-                      <SelectItem value="legacy">Legacy uniquement</SelectItem>
-                      <SelectItem value="create_package">create_package</SelectItem>
-                      <SelectItem value="webhook_status">webhook_status</SelectItem>
-                      <SelectItem value="polling_status">polling_status</SelectItem>
+                      <SelectItem value="all">Tous triggers</SelectItem>
+                      {triggerTypesInRuns.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Button variant="outline" size="sm" onClick={loadRuns}><RefreshCw className="h-4 w-4 mr-1" /> Rafraîchir</Button>
                 </div>
               </div>
               <Card className="p-3 flex flex-wrap items-center gap-3 bg-muted/30">
-                <div className="text-sm font-medium">Nettoyage automatique des logs</div>
-                <label className="flex items-center gap-2 text-sm"><Switch checked={retention.enabled} onCheckedChange={(enabled) => setRetention({ ...retention, enabled })} /> Activer</label>
+                <div className="text-sm font-medium">Nettoyage des logs</div>
+                <label className="flex items-center gap-2 text-sm"><Switch checked={retention.enabled} onCheckedChange={(enabled) => setRetention({ ...retention, enabled })} /> Auto</label>
                 <div className="flex items-center gap-2"><Input type="number" min={1} className="h-9 w-24" value={retention.hours} onChange={(e) => setRetention({ ...retention, hours: Number(e.target.value) })} /><span className="text-sm text-muted-foreground">heures</span></div>
                 <Button variant="outline" size="sm" onClick={saveRetention}>Enregistrer</Button>
+                <Button variant="destructive" size="sm" onClick={runCleanupNow}>Nettoyer maintenant</Button>
               </Card>
+              {filteredRuns.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/30 rounded">
+                  <Checkbox checked={selectedIds.size === filteredRuns.length && filteredRuns.length > 0} onCheckedChange={toggleSelectAll} />
+                  <span className="text-sm">{selectedIds.size} sélectionné(s)</span>
+                  <div className="flex-1" />
+                  <Button variant="outline" size="sm" onClick={bulkExport} disabled={!selectedIds.size}><Download className="h-4 w-4 mr-1" /> Exporter</Button>
+                  <Button variant="destructive" size="sm" onClick={bulkDelete} disabled={!selectedIds.size}><Trash2 className="h-4 w-4 mr-1" /> Supprimer</Button>
+                </div>
+              )}
               {filteredRuns.map((r) => (
-                <div key={r.id} className="relative group">
-                  <RunCard run={r} />
-                  <Button variant="ghost" size="icon" className="absolute top-2 right-10 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); deleteRun(r); }}><Trash2 className="h-3 w-3" /></Button>
+                <div key={r.id} className="relative group flex gap-2 items-start">
+                  <Checkbox className="mt-4" checked={selectedIds.has(r.id)} onCheckedChange={(v) => {
+                    setSelectedIds((prev) => { const n = new Set(prev); if (v) n.add(r.id); else n.delete(r.id); return n; });
+                  }} />
+                  <div className="flex-1 min-w-0"><RunCard run={r} /></div>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteRun(r)}><Trash2 className="h-3 w-3" /></Button>
                 </div>
               ))}
-              {!filteredRuns.length && <div className="text-sm text-muted-foreground text-center p-8">Aucune exécution</div>}
+              {!filteredRuns.length && <div className="text-sm text-muted-foreground text-center p-8">Aucune exécution pour ce workflow</div>}
             </TabsContent>
 
 
