@@ -101,6 +101,8 @@ const AdminLivreurWorkflows = () => {
   const [runSearch, setRunSearch] = useState("");
   const [retention, setRetention] = useState({ enabled: false, hours: 72 });
   const [selectedRun, setSelectedRun] = useState<Json | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const filteredRuns = useMemo(() => recentRuns.filter((r) => {
     if (runFilter === "workflow" && r._legacy) return false;
