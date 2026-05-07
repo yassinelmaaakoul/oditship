@@ -105,13 +105,17 @@ const AdminLivreurWorkflows = () => {
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const filteredRuns = useMemo(() => recentRuns.filter((r) => {
-    if (runFilter === "workflow" && r._legacy) return false;
-    if (runFilter === "legacy" && !r._legacy) return false;
-    if (runFilter !== "all" && runFilter !== "workflow" && runFilter !== "legacy" && r.trigger_type !== runFilter) return false;
+    if (runFilter !== "all" && r.trigger_type !== runFilter) return false;
     const n = runSearch.trim().toLowerCase();
     if (!n) return true;
     return [r.order_id, r.trigger_type, r.status, r.error_message, JSON.stringify(r.step_results || {})].some((v) => String(v ?? "").toLowerCase().includes(n));
   }), [recentRuns, runFilter, runSearch]);
+
+  const triggerTypesInRuns = useMemo(() => {
+    const set = new Set<string>();
+    recentRuns.forEach((r) => r.trigger_type && set.add(r.trigger_type));
+    return Array.from(set);
+  }, [recentRuns]);
 
   const saveRetention = async () => {
     const hours = Math.max(Number(retention.hours) || 72, 1);
@@ -120,13 +124,44 @@ const AdminLivreurWorkflows = () => {
     else { toast.success("Cleanup enregistré"); setRetention({ enabled: retention.enabled, hours }); }
   };
 
+  const runCleanupNow = async () => {
+    const hours = Math.max(Number(retention.hours) || 72, 1);
+    const cutoff = new Date(Date.now() - hours * 3600000).toISOString();
+    const [r1, r2] = await Promise.all([
+      db.from("livreur_workflow_runs").delete().lt("started_at", cutoff),
+      db.from("livreur_api_logs").delete().lt("created_at", cutoff),
+    ]);
+    if (r1.error || r2.error) toast.error(r1.error?.message || r2.error?.message);
+    else { toast.success(`Nettoyage effectué (> ${hours}h)`); loadRuns(); }
+  };
+
   const deleteRun = async (run: Json) => {
     if (!confirm("Supprimer cette exécution ?")) return;
-    const table = run._legacy ? "livreur_api_logs" : "livreur_workflow_runs";
-    const id = run._legacy ? Number(String(run.id).replace("legacy-", "")) : run.id;
-    const { error } = await db.from(table).delete().eq("id", id);
+    const { error } = await db.from("livreur_workflow_runs").delete().eq("id", run.id);
     if (error) toast.error(error.message);
     else { toast.success("Supprimé"); setSelectedRun(null); loadRuns(); }
+  };
+
+  const bulkDelete = async () => {
+    if (!selectedIds.size) return;
+    if (!confirm(`Supprimer ${selectedIds.size} exécution(s) ?`)) return;
+    const { error } = await db.from("livreur_workflow_runs").delete().in("id", Array.from(selectedIds));
+    if (error) toast.error(error.message);
+    else { toast.success("Supprimé"); setSelectedIds(new Set()); loadRuns(); }
+  };
+
+  const bulkExport = () => {
+    if (!selectedIds.size) return;
+    const rows = recentRuns.filter((r) => selectedIds.has(r.id));
+    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `executions-${Date.now()}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredRuns.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filteredRuns.map((r) => r.id)));
   };
 
   const active = workflows.find((w) => w.id === activeId) || null;
