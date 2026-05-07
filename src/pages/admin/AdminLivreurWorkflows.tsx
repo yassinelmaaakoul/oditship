@@ -351,6 +351,64 @@ const AdminLivreurWorkflows = () => {
     } catch (e: any) { toast.error("Import échoué: " + e.message); }
   };
 
+  const insertOlivraisonPollingPreset = () => {
+    if (!active) return;
+    const loginId = newId();
+    const listId = newId();
+    const filterId = newId();
+    const findId = newId();
+    const mapId = newId();
+    const filterStatusId = newId();
+    const updId = newId();
+    const logId = newId();
+    const presetSteps: Json[] = [
+      { id: loginId, name: "Login Olivraison", type: "http", enabled: true, on_error: "stop", retry: { max_attempts: 2, backoff_ms: 1000 },
+        config: { method: "POST", url: "https://partners.olivraison.com/auth/login", headers: { "Content-Type": "application/json" },
+          body: { apiKey: "{{$secret.OLIVRAISON_API_KEY}}", secretKey: "{{$secret.OLIVRAISON_SECRET_KEY}}" }, body_type: "json" } },
+      { id: "set_token_" + newId(), name: "Stocker token", type: "set_variable", enabled: true, on_error: "stop", retry: {},
+        config: { values: { token: `{{steps.${loginId}.token}}` } } },
+      { id: listId, name: "Lister packages récents", type: "http", enabled: true, on_error: "stop", retry: { max_attempts: 2, backoff_ms: 2000 },
+        config: { method: "GET", url: "https://partners.olivraison.com/packages?limit=50", headers: { Authorization: "Bearer {{vars.token}}" }, body: {}, body_type: "json" } },
+      { id: filterId, name: "Si packages présents", type: "filter", enabled: true, on_error: "stop", retry: {},
+        config: { mode: "all", on_false: "stop", conditions: [{ left: `{{steps.${listId}.0.trackingID}}`, operator: "exists", right: "" }] } },
+      { id: findId, name: "Charger commande locale", type: "find_order", enabled: true, on_error: "continue", retry: {},
+        config: { field: "external_tracking_number", value: `{{steps.${listId}.0.trackingID}}`, optional: true } },
+      { id: mapId, name: "Mapper status Olivraison → local", type: "set_variable", enabled: true, on_error: "stop", retry: {},
+        config: { values: {
+          remote_status: `{{steps.${listId}.0.status}}`,
+          local_status: `{{steps.${listId}.0.status}}`,
+          note: `{{steps.${listId}.0.note}}`,
+          tracking: `{{steps.${listId}.0.trackingID}}`,
+          driver_name: `{{steps.${listId}.0.transport.currentDriverName}}`,
+          driver_phone: `{{steps.${listId}.0.transport.currentDriverPhone}}`,
+          reported_date: `{{steps.${listId}.0.reportedDate}}`,
+          scheduled_date: `{{steps.${listId}.0.scheduledDate}}`,
+        } },
+        // Status mapping rule (for documentation / future use)
+        status_mapping: {
+          DELETED: "Annulé", ENROUTE: "En route", REFUSED: "Refusé", TRANSIT: "Transit",
+          CANCELED: "Annulé", REPORTED: "Reporté", RETURNED: "Retourné", DELIVERED: "Livré", scheduled: "Programmé",
+        },
+      },
+      { id: filterStatusId, name: "Skip si même statut", type: "filter", enabled: true, on_error: "stop", retry: {},
+        config: { mode: "all", on_false: "stop",
+          conditions: [
+            { left: "{{order.id}}", operator: "exists", right: "" },
+            { left: "{{order.status}}", operator: "neq", right: "{{vars.local_status}}" },
+          ] } },
+      { id: updId, name: "Mettre à jour la commande", type: "update_order", enabled: true, on_error: "stop", retry: {},
+        config: { updates: { status: "{{vars.local_status}}", status_note: "{{vars.note}}", driver_name: "{{vars.driver_name}}", driver_phone: "{{vars.driver_phone}}", external_tracking_number: "{{vars.tracking}}" } } },
+      { id: logId, name: "Historique statut", type: "log_status", enabled: true, on_error: "continue", retry: {},
+        config: { new_status: "{{vars.local_status}}", note: "Polling Olivraison: {{vars.remote_status}} — {{vars.note}}" } },
+    ];
+    const newTriggers = [...(active.triggers || [])];
+    if (!newTriggers.some((t) => t.type === "recurring")) {
+      newTriggers.push({ ...defaultTrigger("recurring"), name: "Polling Olivraison (5 min)", interval_value: 5, interval_unit: "minutes" });
+    }
+    updateActive({ steps: [...(active.steps || []), ...presetSteps], triggers: newTriggers });
+    toast.success("Preset Olivraison ajouté — n'oubliez pas d'enregistrer");
+  };
+
   if (loading) return <div className="p-8">Chargement...</div>;
 
   return (
