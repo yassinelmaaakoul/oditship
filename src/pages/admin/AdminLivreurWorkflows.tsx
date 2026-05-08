@@ -362,53 +362,56 @@ const AdminLivreurWorkflows = () => {
   const insertOlivraisonPollingPreset = () => {
     if (!active) return;
     const loginId = newId();
+    const setTokenId = newId();
     const listId = newId();
-    const filterId = newId();
-    const findId = newId();
-    const mapId = newId();
-    const filterStatusId = newId();
-    const updId = newId();
-    const logId = newId();
+    const guardListId = newId();
+    const forEachId = newId();
+
+    const STATUS_MAP = {
+      DELETED: "Annulé", ENROUTE: "En route", REFUSED: "Refusé",
+      TRANSIT: "En transit", CANCELED: "Annulé", REPORTED: "Reporté",
+      RETURNED: "Retourné", DELIVERED: "Livré", scheduled: "Programmé",
+      pending: "Crée", confirmed: "Confirmé", picked: "Pickup",
+    } as Json;
+
+    // Sub-steps executed for each package returned by the list
+    const subSteps: Json[] = [
+      { id: newId(), name: "Charger commande locale", type: "find_order", enabled: true, on_error: "continue", retry: { max_attempts: 1, backoff_ms: 0 },
+        config: { field: "external_tracking_number", value: "{{item.trackingID}}", optional: true } },
+      { id: newId(), name: "Skip si commande introuvable", type: "filter", enabled: true, on_error: "stop", retry: {},
+        config: { mode: "all", on_false: "stop", conditions: [{ left: "{{order.id}}", operator: "exists", right: "" }] } },
+      { id: newId(), name: "Mapper statut Olivraison → local", type: "map_value", enabled: true, on_error: "stop", retry: {},
+        config: { value: "{{item.status}}", output_var: "local_status", default: "{{item.status}}", mapping: STATUS_MAP } },
+      { id: newId(), name: "Skip si statut inchangé", type: "filter", enabled: true, on_error: "stop", retry: {},
+        config: { mode: "all", on_false: "stop", conditions: [{ left: "{{order.status}}", operator: "neq", right: "{{vars.local_status}}" }] } },
+      { id: newId(), name: "Mettre à jour la commande", type: "update_order", enabled: true, on_error: "continue", retry: { max_attempts: 2, backoff_ms: 500 },
+        config: { updates: {
+          status: "{{vars.local_status}}",
+          status_note: "{{item.note}}",
+          driver_name: "{{item.transport.currentDriverName}}",
+          driver_phone: "{{item.transport.currentDriverPhone}}",
+          external_tracking_number: "{{item.trackingID}}",
+        } } },
+      { id: newId(), name: "Historique statut", type: "log_status", enabled: true, on_error: "continue", retry: {},
+        config: { new_status: "{{vars.local_status}}", note: "Polling Olivraison: {{item.status}} — {{item.note}}" } },
+    ];
+
     const presetSteps: Json[] = [
       { id: loginId, name: "Login Olivraison", type: "http", enabled: true, on_error: "stop", retry: { max_attempts: 2, backoff_ms: 1000 },
-        config: { method: "POST", url: "https://partners.olivraison.com/auth/login", headers: { "Content-Type": "application/json" },
+        config: { method: "POST", url: "https://partners.olivraison.com/auth/login",
+          headers: { "Content-Type": "application/json" },
           body: { apiKey: "{{$secret.OLIVRAISON_API_KEY}}", secretKey: "{{$secret.OLIVRAISON_SECRET_KEY}}" }, body_type: "json" } },
-      { id: "set_token_" + newId(), name: "Stocker token", type: "set_variable", enabled: true, on_error: "stop", retry: {},
+      { id: setTokenId, name: "Stocker token", type: "set_variable", enabled: true, on_error: "stop", retry: {},
         config: { values: { token: `{{steps.${loginId}.token}}` } } },
-      { id: listId, name: "Lister packages récents", type: "http", enabled: true, on_error: "stop", retry: { max_attempts: 2, backoff_ms: 2000 },
-        config: { method: "GET", url: "https://partners.olivraison.com/packages?limit=50", headers: { Authorization: "Bearer {{vars.token}}" }, body: {}, body_type: "json" } },
-      { id: filterId, name: "Si packages présents", type: "filter", enabled: true, on_error: "stop", retry: {},
+      { id: listId, name: "Lister packages (GET /package)", type: "http", enabled: true, on_error: "stop", retry: { max_attempts: 2, backoff_ms: 2000 },
+        config: { method: "GET", url: "https://partners.olivraison.com/package",
+          headers: { Authorization: "Bearer {{vars.token}}", Accept: "application/json" }, body: {}, body_type: "json" } },
+      { id: guardListId, name: "Stop si liste vide", type: "filter", enabled: true, on_error: "stop", retry: {},
         config: { mode: "all", on_false: "stop", conditions: [{ left: `{{steps.${listId}.0.trackingID}}`, operator: "exists", right: "" }] } },
-      { id: findId, name: "Charger commande locale", type: "find_order", enabled: true, on_error: "continue", retry: {},
-        config: { field: "external_tracking_number", value: `{{steps.${listId}.0.trackingID}}`, optional: true } },
-      { id: mapId, name: "Mapper status Olivraison → local", type: "set_variable", enabled: true, on_error: "stop", retry: {},
-        config: { values: {
-          remote_status: `{{steps.${listId}.0.status}}`,
-          local_status: `{{steps.${listId}.0.status}}`,
-          note: `{{steps.${listId}.0.note}}`,
-          tracking: `{{steps.${listId}.0.trackingID}}`,
-          driver_name: `{{steps.${listId}.0.transport.currentDriverName}}`,
-          driver_phone: `{{steps.${listId}.0.transport.currentDriverPhone}}`,
-          reported_date: `{{steps.${listId}.0.reportedDate}}`,
-          scheduled_date: `{{steps.${listId}.0.scheduledDate}}`,
-        } },
-        // Status mapping rule (for documentation / future use)
-        status_mapping: {
-          DELETED: "Annulé", ENROUTE: "En route", REFUSED: "Refusé", TRANSIT: "Transit",
-          CANCELED: "Annulé", REPORTED: "Reporté", RETURNED: "Retourné", DELIVERED: "Livré", scheduled: "Programmé",
-        },
-      },
-      { id: filterStatusId, name: "Skip si même statut", type: "filter", enabled: true, on_error: "stop", retry: {},
-        config: { mode: "all", on_false: "stop",
-          conditions: [
-            { left: "{{order.id}}", operator: "exists", right: "" },
-            { left: "{{order.status}}", operator: "neq", right: "{{vars.local_status}}" },
-          ] } },
-      { id: updId, name: "Mettre à jour la commande", type: "update_order", enabled: true, on_error: "stop", retry: {},
-        config: { updates: { status: "{{vars.local_status}}", status_note: "{{vars.note}}", driver_name: "{{vars.driver_name}}", driver_phone: "{{vars.driver_phone}}", external_tracking_number: "{{vars.tracking}}" } } },
-      { id: logId, name: "Historique statut", type: "log_status", enabled: true, on_error: "continue", retry: {},
-        config: { new_status: "{{vars.local_status}}", note: "Polling Olivraison: {{vars.remote_status}} — {{vars.note}}" } },
+      { id: forEachId, name: "Pour chaque package", type: "for_each", enabled: true, on_error: "continue", retry: {},
+        config: { items: `{{steps.${listId}}}`, item_var: "item", index_var: "index", max_iterations: 200, on_iteration_error: "continue", steps: subSteps } },
     ];
+
     const newTriggers = [...(active.triggers || [])];
     if (!newTriggers.some((t) => t.type === "recurring")) {
       newTriggers.push({ ...defaultTrigger("recurring"), name: "Polling Olivraison (5 min)", interval_value: 5, interval_unit: "minutes" });
