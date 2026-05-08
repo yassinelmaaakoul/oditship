@@ -160,6 +160,7 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
     const backoff = Math.max(0, Number(retry.backoff_ms) || 0);
     let lastErr: any = null;
     let exchanges: any[] = [];
+    let payload: any = undefined;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         if (step.type === "http") {
