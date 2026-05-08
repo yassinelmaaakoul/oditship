@@ -12,7 +12,17 @@ const json = (b: Json, s = 200) =>
 
 function getPath(obj: any, path?: string | null) {
   if (!path) return undefined;
-  return String(path).split(".").reduce((a: any, k) => a?.[k], obj);
+  return String(path).split(".").reduce((a: any, k) => {
+    if (a === undefined || a === null) return undefined;
+    if (Array.isArray(a)) {
+      if (k === "last") return a[a.length - 1];
+      if (k === "first") return a[0];
+      if (k === "length") return a.length;
+      const n = Number(k);
+      if (Number.isInteger(n)) return a[n];
+    }
+    return a?.[k];
+  }, obj);
 }
 
 function setPath(obj: Json, path: string, value: unknown) {
