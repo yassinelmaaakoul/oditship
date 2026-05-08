@@ -374,12 +374,17 @@ const AdminLivreurWorkflows = () => {
       pending: "Crée", confirmed: "Confirmé", picked: "Pickup",
     } as Json;
 
+    const detailsId = newId();
+
     // Sub-steps executed for each package returned by the list
     const subSteps: Json[] = [
       { id: newId(), name: "Charger commande locale", type: "find_order", enabled: true, on_error: "continue", retry: { max_attempts: 1, backoff_ms: 0 },
         config: { field: "external_tracking_number", value: "{{item.trackingID}}", optional: true } },
       { id: newId(), name: "Skip si commande introuvable", type: "filter", enabled: true, on_error: "stop", retry: {},
         config: { mode: "all", on_false: "stop", conditions: [{ left: "{{order.id}}", operator: "exists", right: "" }] } },
+      { id: detailsId, name: "Détails package (GET /package/{trackingID})", type: "http", enabled: true, on_error: "continue", retry: { max_attempts: 2, backoff_ms: 1000 },
+        config: { method: "GET", url: "https://partners.olivraison.com/package/{{item.trackingID}}",
+          headers: { Authorization: "Bearer {{vars.token}}", Accept: "application/json" }, body: {}, body_type: "json" } },
       { id: newId(), name: "Mapper statut Olivraison → local", type: "map_value", enabled: true, on_error: "stop", retry: {},
         config: { value: "{{item.status}}", output_var: "local_status", default: "{{item.status}}", mapping: STATUS_MAP } },
       { id: newId(), name: "Skip si statut inchangé", type: "filter", enabled: true, on_error: "stop", retry: {},
@@ -388,8 +393,8 @@ const AdminLivreurWorkflows = () => {
         config: { updates: {
           status: "{{vars.local_status}}",
           status_note: "{{item.note}}",
-          driver_name: "{{item.transport.currentDriverName}}",
-          driver_phone: "{{item.transport.currentDriverPhone}}",
+          driver_name: `{{steps.${detailsId}.transport.currentDriverName}}`,
+          driver_phone: `{{steps.${detailsId}.transport.currentDriverPhone}}`,
           external_tracking_number: "{{item.trackingID}}",
         } } },
       { id: newId(), name: "Historique statut", type: "log_status", enabled: true, on_error: "continue", retry: {},
@@ -407,9 +412,9 @@ const AdminLivreurWorkflows = () => {
         config: { method: "GET", url: "https://partners.olivraison.com/package",
           headers: { Authorization: "Bearer {{vars.token}}", Accept: "application/json" }, body: {}, body_type: "json" } },
       { id: guardListId, name: "Stop si liste vide", type: "filter", enabled: true, on_error: "stop", retry: {},
-        config: { mode: "all", on_false: "stop", conditions: [{ left: `{{steps.${listId}.0.trackingID}}`, operator: "exists", right: "" }] } },
+        config: { mode: "all", on_false: "stop", conditions: [{ left: `{{steps.${listId}.data.0.trackingID}}`, operator: "exists", right: "" }] } },
       { id: forEachId, name: "Pour chaque package", type: "for_each", enabled: true, on_error: "continue", retry: {},
-        config: { items: `{{steps.${listId}}}`, item_var: "item", index_var: "index", max_iterations: 200, on_iteration_error: "continue", steps: subSteps } },
+        config: { items: `{{steps.${listId}.data}}`, item_var: "item", index_var: "index", max_iterations: 500, on_iteration_error: "continue", steps: subSteps } },
     ];
 
     const newTriggers = [...(active.triggers || [])];
