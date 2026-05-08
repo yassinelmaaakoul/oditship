@@ -1538,6 +1538,45 @@ const FindActiveOrdersEditor = ({ step, onChange }: { step: Json; onChange: (p: 
   );
 };
 
+const FindLastHistoryEditor = ({ step, onChange }: { step: Json; onChange: (p: Json) => void }) => {
+  const cfg = step.config || {};
+  const [mode, setMode] = useState<"fields" | "json">("fields");
+  const [text, setText] = useState(() => JSON.stringify(cfg, null, 2));
+  const set = (patch: Json) => onChange({ config: { ...cfg, ...patch } });
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>Configuration find_last_history</Label>
+        <div className="flex gap-1">
+          <Button type="button" size="sm" variant={mode === "fields" ? "default" : "outline"} onClick={() => setMode("fields")}>Champs</Button>
+          <Button type="button" size="sm" variant={mode === "json" ? "default" : "outline"} onClick={() => { setText(JSON.stringify(cfg, null, 2)); setMode("json"); }}>JSON</Button>
+        </div>
+      </div>
+      {mode === "fields" ? (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <Label>order_id (expression)</Label>
+            <Input value={cfg.order_id ?? "{{order.id}}"} onChange={(e) => set({ order_id: e.target.value })} placeholder="{{order.id}} ou {{item.id}}" />
+            <p className="text-xs text-muted-foreground mt-1">ID numérique de la commande dont on veut la dernière ligne d'historique.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={cfg.optional !== false} onCheckedChange={(v) => set({ optional: v })} />
+            <Label className="!m-0">Optionnel (ne pas échouer si vide)</Label>
+          </div>
+        </div>
+      ) : (
+        <Textarea className="font-mono text-xs" rows={6} value={text} onChange={(e) => {
+          setText(e.target.value);
+          try { onChange({ config: JSON.parse(e.target.value) }); } catch {}
+        }} />
+      )}
+      <p className="text-xs text-muted-foreground">
+        Renvoie la ligne <code>order_status_history</code> la plus récente. Champs disponibles via <code>{`{{steps.<id>.actor_label}}`}</code>, <code>.notes</code>, <code>.new_status</code>, <code>.old_status</code>, <code>.provider_note</code>, <code>.changed_at</code>, <code>.found</code>.
+      </p>
+    </div>
+  );
+};
+
 const SubStepRow = ({ sub, index, total, onPatch, onMove, onRemove }: { sub: Json; index: number; total: number; onPatch: (p: Json) => void; onMove: (d: number) => void; onRemove: () => void }) => {
   const [mode, setMode] = useState<"fields" | "json">("fields");
   const [jsonText, setJsonText] = useState(() => JSON.stringify(sub.config || {}, null, 2));
