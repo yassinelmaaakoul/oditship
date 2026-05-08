@@ -883,6 +883,9 @@ const StepCard = ({ step, index, total, onChange, onRemove, onMove, onImportCurl
               <p className="col-span-3 text-xs text-muted-foreground">Charge la commande dans <code>ctx.order</code>. Utilisable ensuite avec <code>{"{{order.status}}"}</code> ou par <b>update_order</b>.</p>
             </div>
           )}
+          {step.type === "find_active_orders" && (
+            <FindActiveOrdersEditor step={step} onChange={onChange} />
+          )}
           {step.type === "map_value" && (
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
