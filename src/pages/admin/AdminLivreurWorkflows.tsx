@@ -1311,6 +1311,78 @@ const KeyValueEditor = ({ value, onChange, placeholderK, placeholderV }: { value
   );
 };
 
+const StepLogCard = ({ step: s, index: i }: { step: Json; index: number }) => {
+  const ex = (s.exchanges && s.exchanges[0]) || s.exchange;
+  const iterations: Json[] = Array.isArray(s.output?.iterations) ? s.output.iterations : [];
+  return (
+    <details className="border rounded bg-background">
+      <summary className="cursor-pointer p-2 flex items-center gap-2">
+        <span className={`h-2 w-2 rounded-full ${s.status === "success" ? "bg-green-500" : s.status === "failed" ? "bg-destructive" : "bg-muted-foreground"}`} />
+        <span className="font-medium">{i + 1}. {s.name || s.id}</span>
+        <Badge variant="outline" className="text-[10px]">{s.type}</Badge>
+        <span className="ml-auto text-muted-foreground">{s.status}</span>
+      </summary>
+      <div className="p-2 space-y-2 border-t">
+        {ex && (
+          <>
+            <div><span className="font-semibold">URL endpoint:</span> <code className="break-all">{ex.request?.method} {ex.request?.url}</code></div>
+            <div><span className="font-semibold">Status réception:</span> <code>{ex.response?.status}</code> · {ex.duration_ms}ms</div>
+            <details>
+              <summary className="cursor-pointer">Headers (request / response)</summary>
+              <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-40">{JSON.stringify({ request: ex.request?.headers, response: ex.response?.headers }, null, 2)}</pre>
+            </details>
+            <details open>
+              <summary className="cursor-pointer">Body envoyé (payload request)</summary>
+              <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-40">{JSON.stringify(ex.request?.body, null, 2)}</pre>
+            </details>
+            <details open={s.status === "failed"}>
+              <summary className="cursor-pointer">Body reçu (réponse)</summary>
+              <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-60">{JSON.stringify(ex.response?.body, null, 2)}</pre>
+            </details>
+          </>
+        )}
+        {s.payload !== undefined && (
+          <details open>
+            <summary className="cursor-pointer">Body envoyé (données)</summary>
+            <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-40">{JSON.stringify(s.payload, null, 2)}</pre>
+          </details>
+        )}
+        {s.output !== undefined && !ex && s.type !== "for_each" && s.type !== "loop" && (
+          <details><summary className="cursor-pointer">Résultat (output)</summary>
+            <pre className="bg-muted p-2 rounded mt-1 overflow-auto max-h-40">{JSON.stringify(s.output, null, 2)}</pre>
+          </details>
+        )}
+        {iterations.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-muted-foreground">Itérations: {iterations.length}</div>
+            {iterations.map((it: Json, k: number) => (
+              <details key={k} className="border rounded bg-muted/30">
+                <summary className="cursor-pointer p-2 flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${it.error ? "bg-destructive" : "bg-green-500"}`} />
+                  <span className="font-medium">#{it.index ?? k}</span>
+                  {it.item?.id && <Badge variant="outline" className="text-[10px]">order #{it.item.id}</Badge>}
+                  {it.error && <span className="ml-auto text-destructive truncate max-w-[200px]">{it.error}</span>}
+                </summary>
+                <div className="p-2 border-t space-y-1">
+                  {Array.isArray(it.logs) && it.logs.map((sub: Json, j: number) => (
+                    <StepLogCard key={j} step={sub} index={j} />
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+        {s.error && (
+          <div className="bg-destructive/10 text-destructive p-2 rounded">
+            <div className="font-semibold">Erreur étape</div>
+            <pre className="whitespace-pre-wrap break-all">{s.error}</pre>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+};
+
 const RunCard = ({ run }: { run: Json }) => {
   const [open, setOpen] = useState(false);
   const stepResults: Json[] = Array.isArray(run.step_results) ? run.step_results : [];
