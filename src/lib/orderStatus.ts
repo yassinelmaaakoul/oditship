@@ -29,6 +29,9 @@ export const statusColor = (s: string): StatusStyle => {
     case "Annulé":    return { bg: "bg-red-100",      text: "text-red-700",     ring: "ring-red-200",      hex: "hsl(0 70% 45%)" };
     case "Returned":  return { bg: "bg-orange-100",   text: "text-orange-700",  ring: "ring-orange-200",   hex: "hsl(13 87% 55%)" };
     case "Intéressé": return { bg: "bg-pink-100",     text: "text-pink-700",    ring: "ring-pink-200",     hex: "hsl(330 81% 60%)" };
+    case "ASSIGN":    return { bg: "bg-purple-100",   text: "text-purple-700",  ring: "ring-purple-200",   hex: "hsl(270 91% 65%)" };
+    case "whatsapp":  return { bg: "bg-green-100",    text: "text-green-700",   ring: "ring-green-200",    hex: "hsl(142 76% 36%)" };
+    case "Appel sortant": return { bg: "bg-teal-100", text: "text-teal-700",    ring: "ring-teal-200",     hex: "hsl(173 80% 40%)" };
     default:          return { bg: "bg-gray-100",     text: "text-gray-700",    ring: "ring-gray-200",     hex: "hsl(220 9% 50%)" };
   }
 };
