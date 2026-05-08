@@ -279,9 +279,9 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
         } else if (step.type === "map_value") {
           const cfg = step.config || {};
           const v = interpolate(cfg.value, ctx);
-          const key = String(v ?? "");
+          const key = cfg.trim === false ? String(v ?? "") : String(v ?? "").trim();
           const mapping: Json = cfg.mapping || {};
-          const def = cfg.default !== undefined && cfg.default !== null && cfg.default !== ""
+          const def = Object.prototype.hasOwnProperty.call(cfg, "default")
             ? interpolate(cfg.default, ctx)
             : v;
           const mapped = Object.prototype.hasOwnProperty.call(mapping, key) ? mapping[key] : def;
