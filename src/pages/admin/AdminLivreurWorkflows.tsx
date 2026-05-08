@@ -1118,26 +1118,18 @@ const SubStepsEditor = ({ step, onChange }: { step: Json; onChange: (p: Json) =>
         ) : (
           <div className="space-y-2">
             {subSteps.map((s, i) => (
-              <div key={s.id || i} className="border rounded bg-background">
-                <div className="flex items-center gap-2 p-2 bg-muted/40 border-b">
-                  <Badge variant="outline">{i + 1}</Badge>
-                  <Input value={s.name || ""} onChange={(e) => patchSub(i, { name: e.target.value })} className="h-7 flex-1 max-w-xs text-sm" />
-                  <Select value={s.type} onValueChange={(v) => patchSub(i, { ...defaultStep(v), id: s.id, name: s.name })}>
-                    <SelectTrigger className="h-7 w-44 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>{STEP_TYPES.filter((t) => t.value !== "for_each" && t.value !== "loop").map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Switch checked={s.enabled !== false} onCheckedChange={(v) => patchSub(i, { enabled: v })} />
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveSub(i, -1)} disabled={i === 0}>↑</Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveSub(i, 1)} disabled={i === subSteps.length - 1}>↓</Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeSub(i)}><Trash2 className="h-3 w-3" /></Button>
-                </div>
-                <div className="p-2">
-                  <Textarea className="font-mono text-xs min-h-[80px]" value={JSON.stringify(s.config || {}, null, 2)} onChange={(e) => { try { patchSub(i, { config: JSON.parse(e.target.value) }); } catch { /* ignore */ } }} />
-                </div>
-              </div>
+              <SubStepRow
+                key={s.id || i}
+                sub={s}
+                index={i}
+                total={subSteps.length}
+                onPatch={(p) => patchSub(i, p)}
+                onMove={(d) => moveSub(i, d)}
+                onRemove={() => removeSub(i)}
+              />
             ))}
             <div className="flex gap-2 flex-wrap">
-              {["http", "find_order", "map_value", "filter", "set_variable", "update_order", "log_status", "delay", "extract", "validate"].map((t) => (
+              {["http", "find_order", "find_active_orders", "map_value", "filter", "set_variable", "update_order", "log_status", "delay", "extract", "validate"].map((t) => (
                 <Button key={t} variant="outline" size="sm" onClick={() => addSub(t)}><Plus className="h-3 w-3 mr-1" />{STEP_TYPES.find((s) => s.value === t)?.label || t}</Button>
               ))}
             </div>
