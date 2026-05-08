@@ -213,6 +213,92 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
             if (rule.regex && !(new RegExp(rule.regex).test(String(v ?? "")))) throw new Error(`Validation: ${field} invalid format`);
           }
           output = { valid: true };
+        } else if (step.type === "map_value") {
+          const cfg = step.config || {};
+          const v = interpolate(cfg.value, ctx);
+          const key = String(v ?? "");
+          const mapping: Json = cfg.mapping || {};
+          const def = cfg.default !== undefined && cfg.default !== null && cfg.default !== ""
+            ? interpolate(cfg.default, ctx)
+            : v;
+          const mapped = Object.prototype.hasOwnProperty.call(mapping, key) ? mapping[key] : def;
+          if (cfg.output_var) {
+            ctx.vars = { ...(ctx.vars || {}), [cfg.output_var]: mapped };
+          }
+          output = { input: v, mapped };
+        } else if (step.type === "for_each") {
+          const cfg = step.config || {};
+          const itemsRaw = interpolate(cfg.items, ctx);
+          const itemVar = cfg.item_var || "item";
+          const indexVar = cfg.index_var || "index";
+          const subSteps: Json[] = cfg.steps || [];
+          let arr: any[] = [];
+          if (Array.isArray(itemsRaw)) arr = itemsRaw;
+          else if (itemsRaw && typeof itemsRaw === "object") arr = Object.values(itemsRaw);
+          const maxIter = Math.min(arr.length, Number(cfg.max_iterations) || 500);
+          const iterations: Json[] = [];
+          const savedOrder = ctx.order;
+          const savedItem = (ctx as any)[itemVar];
+          const savedIndex = (ctx as any)[indexVar];
+          for (let i = 0; i < maxIter; i++) {
+            (ctx as any)[itemVar] = arr[i];
+            (ctx as any)[indexVar] = i;
+            ctx.order = savedOrder;
+            delete (ctx as any).__filter_stop;
+            const itemLogs: Json[] = [];
+            let iterErr: string | null = null;
+            try {
+              for (const sub of subSteps) {
+                if (sub.enabled === false) {
+                  itemLogs.push({ id: sub.id, name: sub.name, type: sub.type, status: "disabled" });
+                  continue;
+                }
+                const { log: subLog } = await runStep(sub, ctx, admin);
+                itemLogs.push(subLog);
+                if ((ctx as any).__filter_stop) break;
+              }
+            } catch (e: any) {
+              iterErr = e?.message || String(e);
+              if (cfg.on_iteration_error === "stop") {
+                iterations.push({ index: i, item: arr[i], logs: itemLogs, error: iterErr });
+                throw e;
+              }
+            }
+            iterations.push({ index: i, item: arr[i], logs: itemLogs, error: iterErr });
+          }
+          (ctx as any)[itemVar] = savedItem;
+          (ctx as any)[indexVar] = savedIndex;
+          ctx.order = savedOrder;
+          delete (ctx as any).__filter_stop;
+          output = { count: arr.length, executed: iterations.length, iterations };
+        } else if (step.type === "loop") {
+          const cfg = step.config || {};
+          const times = Math.max(0, Math.min(Number(interpolate(cfg.times, ctx)) || 0, 1000));
+          const indexVar = cfg.index_var || "i";
+          const subSteps: Json[] = cfg.steps || [];
+          const iterations: Json[] = [];
+          const savedIndex = (ctx as any)[indexVar];
+          for (let i = 0; i < times; i++) {
+            (ctx as any)[indexVar] = i;
+            delete (ctx as any).__filter_stop;
+            const itemLogs: Json[] = [];
+            try {
+              for (const sub of subSteps) {
+                if (sub.enabled === false) continue;
+                const { log: subLog } = await runStep(sub, ctx, admin);
+                itemLogs.push(subLog);
+                if ((ctx as any).__filter_stop) break;
+              }
+            } catch (e: any) {
+              iterations.push({ index: i, logs: itemLogs, error: e?.message || String(e) });
+              if (cfg.on_iteration_error === "stop") throw e;
+              continue;
+            }
+            iterations.push({ index: i, logs: itemLogs });
+          }
+          (ctx as any)[indexVar] = savedIndex;
+          delete (ctx as any).__filter_stop;
+          output = { times, iterations };
         } else if (step.type === "filter") {
           const cfg = step.config || {};
           const ok = evalConditions({ mode: cfg.mode, conditions: cfg.conditions }, ctx);
