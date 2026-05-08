@@ -4,6 +4,7 @@
 export const ORDER_STATUSES = [
   "Crée", "Confirmé", "Pickup", "Ramassé", "Transit", "En route",
   "Reporté", "Programmé", "livré", "Refusé", "Annulé", "Returned", "Intéressé",
+  "ASSIGN", "whatsapp", "Appel sortant",
 ] as const;
 
 export type OrderStatus = typeof ORDER_STATUSES[number];
