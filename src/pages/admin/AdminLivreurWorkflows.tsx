@@ -1593,6 +1593,7 @@ const SubStepRow = ({ sub, index, total, onPatch, onMove, onRemove }: { sub: Jso
         </div>
       );
       case "find_active_orders": return <FindActiveOrdersEditor step={sub} onChange={onChange} />;
+      case "find_last_history": return <FindLastHistoryEditor step={sub} onChange={onChange} />;
       case "map_value": return (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
