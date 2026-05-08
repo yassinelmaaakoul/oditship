@@ -245,6 +245,24 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
           const { data, error } = await q;
           if (error) throw new Error(`find_active_orders: ${error.message}`);
           output = data || [];
+        } else if (step.type === "find_last_history") {
+          // Load the most recent order_status_history row for an order
+          const cfg = step.config || {};
+          const orderId = interpolate(cfg.order_id ?? "{{order.id}}", ctx);
+          if (orderId === undefined || orderId === null || orderId === "") {
+            if (cfg.optional) { output = { found: false }; }
+            else throw new Error("find_last_history: missing order_id");
+          } else {
+            const { data, error } = await admin
+              .from("order_status_history")
+              .select("*")
+              .eq("order_id", Number(orderId))
+              .order("changed_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (error) throw new Error(`find_last_history: ${error.message}`);
+            output = data ? { found: true, ...data } : { found: false };
+          }
         } else if (step.type === "extract") {
           const result: Json = {};
           for (const [k, p] of Object.entries(step.config?.fields || {})) result[k] = getPath(ctx, String(p));
