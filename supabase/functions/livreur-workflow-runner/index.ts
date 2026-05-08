@@ -372,6 +372,7 @@ async function runWorkflow(workflow: Json, ctx: Json, admin: any, opts: { isTest
   // initialize ctx with workflow variables
   ctx.vars = { ...(workflow.variables || {}), ...(ctx.vars || {}) };
   ctx.steps = {};
+  (ctx as any).workflow_livreur_id = workflow.livreur_id;
   try {
     for (const step of workflow.steps || []) {
       if (step.enabled === false) {
