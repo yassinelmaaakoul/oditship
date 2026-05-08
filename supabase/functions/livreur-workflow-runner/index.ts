@@ -180,6 +180,7 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
           const oid = ctx.order?.id ?? interpolate(step.config?.order_id, ctx);
           const updates: Json = {};
           for (const [k, expr] of Object.entries(step.config?.updates || {})) updates[k] = interpolate(expr, ctx);
+          payload = { order_id: oid, updates };
           if (oid) {
             const { data, error } = await admin.from("orders").update(updates).eq("id", oid).select().single();
             if (error) throw new Error(`update_order: ${error.message}`);
@@ -204,6 +205,7 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
             if (repDate) row.reported_date = repDate;
             const schDate = interpolate(cfg.scheduled_date, ctx);
             if (schDate) row.scheduled_date = schDate;
+            payload = row;
             await admin.from("order_status_history").insert(row);
           }
           output = { logged: true };
