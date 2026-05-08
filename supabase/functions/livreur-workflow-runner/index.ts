@@ -200,6 +200,28 @@ async function runStep(step: Json, ctx: Json, admin: any): Promise<{ output: any
             ctx.order = data;
             output = { found: true, order_id: data.id };
           }
+        } else if (step.type === "find_active_orders") {
+          // Query DB for orders matching filters; return as array (use with for_each)
+          const cfg = step.config || {};
+          const exclude: string[] = Array.isArray(cfg.exclude_statuses) && cfg.exclude_statuses.length
+            ? cfg.exclude_statuses
+            : ["Crée", "Confirmé", "Pickup"];
+          const includeStatuses: string[] = Array.isArray(cfg.include_statuses) ? cfg.include_statuses : [];
+          const trackingField = String(cfg.tracking_field || "external_tracking_number");
+          const requireTracking = cfg.require_tracking !== false;
+          const limit = Math.min(Math.max(Number(cfg.limit) || 100, 1), 500);
+          let q: any = admin.from("orders").select("*");
+          if (requireTracking) q = q.not(trackingField, "is", null).neq(trackingField, "");
+          if (exclude.length) q = q.not("status", "in", `(${exclude.map((s) => `"${s}"`).join(",")})`);
+          if (includeStatuses.length) q = q.in("status", includeStatuses);
+          if (cfg.livreur_scope === "workflow") {
+            const wfLivreur = (ctx as any).workflow_livreur_id;
+            if (wfLivreur) q = q.eq("assigned_livreur_id", wfLivreur);
+          }
+          q = q.order("updated_at", { ascending: false }).limit(limit);
+          const { data, error } = await q;
+          if (error) throw new Error(`find_active_orders: ${error.message}`);
+          output = data || [];
         } else if (step.type === "extract") {
           const result: Json = {};
           for (const [k, p] of Object.entries(step.config?.fields || {})) result[k] = getPath(ctx, String(p));
