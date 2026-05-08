@@ -975,6 +975,9 @@ const StepCard = ({ step, index, total, onChange, onRemove, onMove, onImportCurl
           {step.type === "find_active_orders" && (
             <FindActiveOrdersEditor step={step} onChange={onChange} />
           )}
+          {step.type === "find_last_history" && (
+            <FindLastHistoryEditor step={step} onChange={onChange} />
+          )}
           {step.type === "map_value" && (
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
