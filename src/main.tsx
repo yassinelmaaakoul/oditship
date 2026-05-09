@@ -1,6 +1,9 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { preloadStatusBadgeOverrides } from "./lib/statusBadgeOverrides";
+
+preloadStatusBadgeOverrides().catch(() => { /* */ });
 
 // --- Impersonation isolation bootstrap ---
 // When this tab is in "impersonation mode" (flag set by /impersonate), redirect
