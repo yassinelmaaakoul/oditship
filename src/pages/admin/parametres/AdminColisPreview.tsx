@@ -53,6 +53,7 @@ const AdminColisPreview = () => {
   const [settings, setSettings] = useState<ColisPreviewSettings>(defaultColisPreviewSettings);
   const [active, setActive] = useState<ColisPreviewLocation>("main");
   const [saving, setSaving] = useState(false);
+  const [badgeOverrides, setBadgeOverrides] = useState<StatusBadgeOverrides>({});
   const section = settings[active];
   const previewHtml = useMemo(
     () => sanitizeColisHtml(`<style>${renderColisTemplate(section.css, sample)}</style>${renderColisTemplate(section.html, sample)}`),
@@ -62,6 +63,8 @@ const AdminColisPreview = () => {
   useEffect(() => {
     db.from("app_settings").select("value").eq("key", COLIS_PREVIEW_SETTING_KEY).maybeSingle()
       .then(({ data }: any) => setSettings(normalizeColisPreviewSettings(data?.value)));
+    db.from("app_settings").select("value").eq("key", STATUS_BADGE_OVERRIDES_KEY).maybeSingle()
+      .then(({ data }: any) => setBadgeOverrides((data?.value as StatusBadgeOverrides) || {}));
   }, []);
 
   const updateSection = (patch: Partial<typeof section>) =>
