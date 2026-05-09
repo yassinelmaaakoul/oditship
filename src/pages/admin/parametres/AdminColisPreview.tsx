@@ -308,6 +308,41 @@ const AdminColisPreview = () => {
           )}
         </Card>
       </div>
+
+      {/* Status badge customizer */}
+      <Card className="p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h4 className="font-semibold">Statuts — couleurs des badges</h4>
+            <p className="text-xs text-muted-foreground">Surchargez l'apparence des badges par statut. Laissez vide pour garder les valeurs par défaut.</p>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {ORDER_STATUSES.map((status) => {
+            const fb = statusColor(status);
+            const ov = badgeOverrides[status];
+            const bg = ov?.bg ?? fb.hex;
+            const text = ov?.text ?? "#ffffff";
+            const border = ov?.border ?? bg;
+            return (
+              <div key={status} className="flex items-center gap-2 rounded-md border border-border p-2">
+                <span
+                  className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                  style={{ backgroundColor: bg, color: text, boxShadow: `inset 0 0 0 1px ${border}` }}
+                >
+                  {statusLabel(status)}
+                </span>
+                <div className="ml-auto flex items-center gap-1">
+                  <Input type="color" className="h-7 w-7 cursor-pointer p-0.5" value={/^#/.test(bg) ? bg : "#000000"} onChange={(e) => updateBadge(status, { bg: e.target.value })} title="Fond" />
+                  <Input type="color" className="h-7 w-7 cursor-pointer p-0.5" value={/^#/.test(text) ? text : "#ffffff"} onChange={(e) => updateBadge(status, { text: e.target.value })} title="Texte" />
+                  <Input type="color" className="h-7 w-7 cursor-pointer p-0.5" value={/^#/.test(border) ? border : "#000000"} onChange={(e) => updateBadge(status, { border: e.target.value })} title="Bordure" />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => resetBadge(status)} title="Reset"><RotateCcw className="h-3.5 w-3.5" /></Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
     </div>
   );
 };
