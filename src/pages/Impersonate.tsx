@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
-import { Loader2 } from "lucide-react";
+import { AppLoading } from "@/components/AppLoading";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -72,12 +72,5 @@ export default function Impersonate() {
       });
   }, [searchParams, navigate]);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex items-center gap-3 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-        <span>Chargement de la session…</span>
-      </div>
-    </div>
-  );
+  return <AppLoading label="Chargement de la session…" />;
 }

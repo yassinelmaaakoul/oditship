@@ -12,8 +12,6 @@ import { ChevronDown, Printer, Search } from "lucide-react";
 import { printSticker } from "@/lib/printSticker";
 import { cn } from "@/lib/utils";
 import { COLIS_PREVIEW_SETTING_KEY, colisSectionStyle, defaultColisPreviewSettings, getColisPreviewValue, normalizeColisPreviewSettings, renderColisTemplate, sanitizeColisHtml, sortedVisibleFields, type ColisPreviewSettings } from "@/lib/colisPreview";
-import { COLIS_PAGE_PRESET_KEY, defaultColisPagePreset, normalizeColisPagePreset, type ColisPagePreset } from "@/lib/colisPagePreset";
-import { ColisCanvasPage } from "@/components/dashboard/ColisCanvasPage";
 import { getAppSetting } from "@/lib/appSettingsCache";
 
 const ORDERS_COLUMNS = "id,customer_name,customer_phone,customer_address,customer_city,product_name,order_value,open_package,comment,status,tracking_number,external_tracking_number,status_note,postponed_date,scheduled_date,created_at,vendeur_id";
@@ -51,19 +49,16 @@ const AdminColis = () => {
   const [dateTo, setDateTo] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [previewSettings, setPreviewSettings] = useState<ColisPreviewSettings>(defaultColisPreviewSettings);
-  const [pagePreset, setPagePreset] = useState<ColisPagePreset>(defaultColisPagePreset);
 
   useEffect(() => {
     Promise.all([
       supabase.from("orders").select(ORDERS_COLUMNS).order("created_at", { ascending: false }).limit(1000),
       supabase.from("profiles").select("id, username, full_name").eq("role", "vendeur").order("username"),
       getAppSetting(COLIS_PREVIEW_SETTING_KEY),
-      getAppSetting(COLIS_PAGE_PRESET_KEY),
-    ]).then(([o, v, settings, page]) => {
+    ]).then(([o, v, settings]) => {
       setOrders((o.data ?? []) as Order[]);
       setVendeurs((v.data ?? []) as Vendeur[]);
       setPreviewSettings(normalizeColisPreviewSettings(settings));
-      setPagePreset(normalizeColisPagePreset(page));
       setLoading(false);
     });
     const channel = supabase.channel("admin-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
@@ -116,26 +111,6 @@ const AdminColis = () => {
     </div>;
   };
 
-  if (pagePreset.enabled && pagePreset.appliesTo.admin) {
-    return (
-      <ColisCanvasPage
-        preset={pagePreset}
-        title="Toutes les commandes"
-        orders={filtered as any}
-        loading={loading}
-        vendeurMap={vendeurMap}
-        actions={{
-          selectable: false,
-          isDetailsOpen: (id) => expandedOrderId === id,
-          onToggleDetails: (id) => setExpandedOrderId(expandedOrderId === id ? null : id),
-          onPrintSticker: (o) => printSticker(o as any),
-        }}
-        detailsRenderer={(o) => (
-          <OrderDetailsPanel order={o as any} onOrderSynced={(updated) => setOrders((current) => current.map((order) => order.id === updated.id ? { ...order, ...updated } : order))} previewSettings={previewSettings} />
-        )}
-      />
-    );
-  }
 
   return (
     <div className="space-y-4">

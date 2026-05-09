@@ -29,6 +29,8 @@ export interface ColisPreviewSection {
     radius: number;
     padding: number;
     gap: number;
+    fontSize?: number;
+    lineHeight?: number;
   };
 }
 
@@ -81,6 +83,8 @@ const baseStyle = {
     radius: 8,
     padding: 12,
     gap: 8,
+    fontSize: 14,
+    lineHeight: 1.45,
   },
 };
 
@@ -212,6 +216,8 @@ export const colisSectionStyle = (section: ColisPreviewSection, data: Record<str
     borderRadius: section.style.radius,
     padding: section.style.padding,
     gap: section.style.gap,
+    fontSize: section.style.fontSize ? `${section.style.fontSize}px` : undefined,
+    lineHeight: section.style.lineHeight ?? undefined,
   };
 };
 

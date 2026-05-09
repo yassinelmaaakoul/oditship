@@ -1,107 +1,110 @@
+# خطة العمل — Refonte UI كاملة
 
-## السبب الجذري ديال التكرار
+## 1. Design System — Clean Corporate
+تحديث `src/index.css` و`tailwind.config.ts`:
+- Palette: navy `#0f1b3d` (primary), `#1e3a5f` (primary-glow), `#3b6fa0` (accent), `#e8edf3` (surface), `#fafbfc` (background)
+- Typography: Inter للنص + Space Grotesk للعناوين (system-grade)
+- Tokens semantic: `--background`, `--primary`, `--primary-foreground`, `--accent`, `--card`, `--border`, `--muted`, `--surface`, `--shadow-elegant`, `--gradient-primary`
+- Radius: 8px (clean corporate)
+- Update `StatusBadge`, `Button`, `Card`, `Table` styling لتنسجم
 
-تأكدت من قاعدة البيانات للطلبية `B9267AB4F42643` (id=42)، ولقيت 3 أسطر فـ `order_status_history`:
+## 2. Fix Placeholder نهائيا
+**المشكل:** `src/pages/Index.tsx` فيه placeholder image كيظهر خلال:
+- Login flow (قبل redirect)
+- Login as user (impersonation)
+- أي route mismatch لحظي
 
-| id  | old_status | new_status | changed_by   | الوقت        | المصدر                 |
-|-----|------------|------------|--------------|--------------|------------------------|
-| 231 | `Transit`  | `""`       | NULL         | 20:38:33     | trigger (تعديل سابق)   |
-| 232 | `""`       | `Transit`  | NULL         | 20:40:03.843 | **trigger DB تلقائي**  |
-| 233 | `""`       | `Transit`  | livreur_id   | 20:40:03.898 | **polling INSERT يدوي**|
+**الحل:**
+- استبدال Index.tsx بـ redirect مباشر للـ dashboard (إلى route مناسب حسب auth state) بدون image placeholder
+- في `DashboardRouter.tsx` و`Impersonate.tsx`: استعمال loading screen موحد (logo + spinner) بدل placeholder.svg
+- إضافة `AppLoading` component مشترك (logo OdiTship + spinner subtle) واستعماله في كل loading states
 
-### المشكل بالضبط
+## 3. Top Navigation (dashboards فقط)
+إنشاء `src/components/dashboard/TopNav.tsx`:
+- Logo يسار + Nav links وسط + User menu + ProfileModal trigger يمين
+- Sticky, h-16, navy background, accent hover, active underline
+- Responsive: hamburger drawer < md
+- Sub-nav للـ admin (Parametres, Workflows...) كـ dropdown أنيق
 
-عندنا **مصدرين** كيكتبو فنفس الـhistory:
+تعديل `src/components/DashboardLayout.tsx`:
+- إزالة `SidebarProvider` و`AppSidebar`
+- استبدال بـ `<TopNav />` + `<main>` بـ container max-w-7xl
+- Footer محذوف من dashboards (يبقى في public layout)
 
-1. **Trigger `log_order_status_change`** فقاعدة البيانات: كل مرة `orders.status` كيتبدل → كيدير INSERT تلقائي فـ `order_status_history` بـ `changed_by = auth.uid()` (واللي = NULL فحالة edge function بـservice role).
-2. **`livreur-poll-status` edge function**: بعد ما كيدير `update orders.status`، كيدير INSERT يدوي ثاني فـ `order_status_history` بـ `changed_by = livreur_id`.
+## 4. Classic preset — enrichissement + حذف Canvas
+**حذف:**
+- ملف `AdminColisPreviewCanvas.tsx` (Canvas page)
+- ملف `ColisCanvasPage.tsx` (renderer)
+- إزالة `enabled`/`appliesTo` من `ColisPagePreset` (renderer canvas)
+- إزالة `pagePreset.enabled && pagePreset.appliesTo.X` checks في:
+  - `LivreurColis.tsx`, `VendeurColis.tsx`, `AdminColis.tsx`, `RamassoireColis` (إن وجد)
+- إزالة route `/parametres/page-template` (canvas preview)
+- حذف entries من sidebar/nav للـ Canvas
 
-النتيجة: كل تحديث ناجح من polling = **سطرين** فـ history → التكرار اللي كتشوف فالـchronologie.
-
-الحماية الموجودة فالتريغر (10 ثواني + نفس `old_status`/`new_status`/`changed_by`) **ماكتشتغلش** هنا لأن `changed_by` مختلف (NULL ضد livreur_id) → التريغر مكيشوفش السطر اليدوي كنسخة طبق الأصل.
-
-زائد: السطر 231 (`Transit → ""`) كيبين أنه قبل بدقيقتين الـstatus تبدل ل فارغ (يمكن من تجربة سابقة). دفعها فـ`order.status=""` فاش polling قراها → الشرط `mappedStatus === order.status` (`"Transit" === ""`) كان false → دازت التحديث.
-
----
-
-## السبب الثاني: `driver_name` / `driver_phone` ماكيتلتقطوش من polling
-
-تأكدت بـSQL: **ماكايناش أعمدة `driver_name` ولا `driver_phone` فجدول `orders`**. 
-
-الكود ديال polling حالياً كيدير:
+**Classic preset جديد** — `src/lib/colisClassicPreset.ts`:
 ```ts
-admin.from("orders").update({ status, status_note, postponed_date, scheduled_date })
+type ClassicPreset = {
+  fields: { key: ColisField; visible: boolean; order: number; label?: string }[];
+  // ColisField = tracking|customer|city|phone|product|price|status|date|seller|actions
+  appearance: {
+    headerBg: string; headerFg: string;
+    rowBg: string; rowAltBg: string; rowFg: string;
+    borderColor: string; accentColor: string;
+    fontSize: number;       // 12-18 px
+    rowHeight: number;      // 36-72 px
+    padding: number;        // 8-24 px
+    radius: number;         // 0-16 px
+  };
+  statusBadges: Record<string, { bg: string; fg: string }>;
+  details: {
+    enabled: boolean;
+    layout: 'tabs' | 'sections' | 'compact';
+    fields: { key: DetailField; visible: boolean; order: number; group?: string }[];
+    // DetailField: customer_block, address_block, product_block, history_timeline, comments, postponed, scheduled, financials, driver
+    appearance: {
+      bg: string; fg: string; accentColor: string;
+      sectionGap: number; padding: number;
+      showIcons: boolean; showHistory: boolean;
+    };
+  };
+};
 ```
-ماكيخزن حتى driver. زائد polling **ماكيقراش** `webhook_driver_name_field` / `webhook_driver_phone_field` ولا كيدير لهم mapping خاص. UI ديال order-details كيقراهم فقط من آخر webhook log، ماشي من polling logs.
 
-وفـAdminLivreurs.tsx، فقائمة `SYSTEM_ORDER_FIELDS` كاينين `driver_name` و `driver_phone`، ولكن أنت كنت كتعمر بيهم خانة "Order field" د polling payload mapping — وهاد الـmapping أصلا كيتسخدم فالـ**body المرسول للـAPI** (POST request body)، ماشي للالتقاط من الـresponse. ف olivraison polling هو GET بلا body، فهاد الـmapping ماعندو معنى هنا أصلا.
+**UI ديال التحكم** — صفحة جديدة `AdminClassicPreset.tsx`:
+- Tabs: **Champs** | **Apparence** | **Statuts** | **Détails (open)**
+- **Champs:** drag-and-drop list (`@dnd-kit/sortable` موجود؟ سأفحص — وإلا up/down arrows) + checkbox visible
+- **Apparence:** color pickers (HTML5 `<input type="color">`) + Sliders (`@/components/ui/slider`) للـ font/row/padding/radius
+- **Statuts:** قائمة statuts + color picker لكل واحد
+- **Détails (open):** نفس الفكرة (drag fields, layout select, colors, gap)
+- زر **Reset** → يعيد defaults (مع confirm dialog)
+- Live preview على اليمين (split view) كيتحدث في real-time
+- Save → `app_settings` row `colis_classic_preset_v1`
 
----
+**تطبيق:** 
+- `ColisTable` component جديد يقرأ Classic preset ويرندر table مع كاع التحكم
+- يستعمل في كل dashboards (vendeur/admin/livreur/ramassoire)
+- Open details panel: customizable حسب preset
 
-## الخطة ديال الإصلاح
+## 5. Cleanup
+- حذف `AppSidebar` (إن كان موجود) من dashboard pages
+- تحديث routes في `App.tsx`: حذف canvas preview route
+- تحديث `AdminParametres.tsx`: استبدال Canvas/Page Template entry بـ "Affichage des colis" (Classic preset)
+- اختبار كل dashboards تشتغل
 
-### 1. حل التكرار بشكل نهائي — مصدر واحد للحقيقة
+## ملفات سيتم تعديلها
+- `src/index.css`, `tailwind.config.ts` — design tokens
+- `src/pages/Index.tsx`, `src/pages/Impersonate.tsx`, `src/pages/DashboardRouter.tsx` — fix placeholder
+- `src/components/dashboard/TopNav.tsx` (جديد), `src/components/dashboard/AppLoading.tsx` (جديد)
+- `src/components/DashboardLayout.tsx` — top nav
+- `src/lib/colisClassicPreset.ts` (جديد), `src/components/dashboard/ColisTable.tsx` (جديد)
+- `src/pages/admin/parametres/AdminClassicPreset.tsx` (جديد)
+- `src/pages/admin/AdminParametres.tsx`, `src/App.tsx` — routes
+- جميع `*Colis.tsx` pages (livreur/vendeur/admin/ramassoire)
+- حذف: `ColisCanvasPage.tsx`, `AdminColisPagePreset.tsx`, `AdminColisPreviewCanvas.tsx`, `colisPagePreset.ts`
 
-نختار النهج: **edge functions كيكتبو فـhistory بأنفسهم، والتريغر كيتجاهل التحديثات اللي جاية من service role / polling / webhook**.
+## نقطة مهمة
+شغل كبير. هل نديرو كلشي في pass واحدة، ولا تفضل نقسموها؟
+- **Pass 1:** Design tokens + Top nav + fix placeholder
+- **Pass 2:** Classic preset enrichi + حذف Canvas
 
-**التغييرات:**
-
-a) **تعديل التريغر `log_order_status_change`** (migration):
-   - يكتب history فقط فاش `auth.uid() IS NOT NULL` (يعني تعديل من user حقيقي عبر RLS، ماشي service role).
-   - فحالة service role (`auth.uid() IS NULL`) → ماكيكتبش، لأن الedge function هي اللي مسؤولة على كتابة السطر بـ`changed_by=livreur_id` بشكل صريح.
-   - هكدا التريغر يبقى مفعل للتعديلات اليدوية من vendeur/admin/livreur عبر UI، وعدم ازدواج مع edge functions.
-
-b) **`livreur-poll-status` و `livreur-webhook`**: يبقاو كيديرو INSERT يدوي للـhistory (هما مصدر الحقيقة لتحديثات provider).
-
-c) **تنظيف السطر الشاذ 231** (`Transit → ""`): هاد البيانات الفاسدة كتخلي `order.status=""` اللي كتفشل dedup. بعد إصلاح التريغر، السبب اللي خلقها (حالة سباق سابقة) ميتكررش.
-
-### 2. حماية إضافية فـpolling ضد race conditions
-
-فـ`livreur-poll-status`، نزيد فحص ثاني قبل INSERT للـhistory:
-- نقرا آخر سطر history للorder.
-- إلا كان `new_status` ديالو = `mappedStatus` و `changed_at` فآخر 30 ثانية → نتجاهل (skip).
-
-هذا يحمي من نفس polling الـcron اللي يدوز مرتين بسرعة، أو من webhook+polling اللي يجيو فنفس الوقت بنفس الstatus.
-
-### 3. التقاط `driver_name` و `driver_phone` من polling
-
-**خياران:**
-
-**أ. (موصى به) إضافة عمودين `driver_name` و `driver_phone` لجدول `orders`** (migration)، باش يتخزنو رسمياً ويبانو للبائع و livreur فالتفاصيل وفي كل مكان.
-
-ثم:
-- فـ`livreur-poll-status` ندير قراءة من body باستخدام `settings.webhook_driver_name_field` و `settings.webhook_driver_phone_field` (نفس paths ديال webhook لأن نفس provider) ونحدثهم فـ`orders` بجوج status.
-- نفس الشي فـ`livreur-webhook`: نخزنهم فـ`orders` ماشي فقط فـlogs.
-- فـ`order-details`: نقرا `driver_name`/`driver_phone` مباشرة من `orders` (fallback على آخر log إلا فاضيين).
-- فـAdminLivreurs (UI): نزيد حقول إعدادات منفصلة "Polling driver name field" و "Polling driver phone field" (مع default = نفس قيم webhook)، باش لكل provider يتم التحكم بشكل منفصل.
-
-**ب. (بديل أبسط)** نعمل نفس الشي ولكن نخزن فـ`status_note` أو نضيف عمود واحد `provider_metadata jsonb` بدل عمودين. أقل نظافة ولكن أكثر مرونة.
-
-**نقترح الخيار (أ)** لأنه واضح وكتظهر الحقول مباشرة فأي query أو UI.
-
-### 4. توضيح UI ديال "Polling payload mapping"
-
-حالياً هاد الحقل كيشوش لأنه مخصص للـrequest body (POST/PUT)، ولكن olivraison GET فماكيستعملوش. نزيد:
-- نص توضيحي: "Used only when polling method is POST/PUT/PATCH. For GET requests this is ignored — provider data is captured from the response using the field paths above."
-- ونخفيها بشكل اختياري فاش method = GET.
-
----
-
-## التغييرات التقنية بالملفات
-
-| ملف                                                         | التعديل                                                                  |
-|-------------------------------------------------------------|--------------------------------------------------------------------------|
-| migration جديدة                                              | تحديث `log_order_status_change` لتخطي service role + إضافة `driver_name`/`driver_phone` لـ`orders` + تنظيف سطر 231 |
-| `supabase/functions/livreur-poll-status/index.ts`           | dedup إضافي (آخر history فـ30s) + قراءة driver fields + update فـ`orders` |
-| `supabase/functions/livreur-webhook/index.ts`               | تخزين `driver_name`/`driver_phone` فـ`orders` (ماشي فقط فـlog)            |
-| `supabase/functions/order-details/index.ts`                 | قراءة driver من `orders` مباشرة (fallback على log)                       |
-| `src/pages/admin/parametres/AdminLivreurs.tsx`              | نص توضيحي لـpolling payload mapping + (اختياري) حقول driver منفصلة لـpolling |
-
----
-
-## النتيجة المتوقعة
-
-- مصدر **واحد** يكتب فـhistory لكل تحديث provider → لا تكرار.
-- `Transit` يظهر مرة واحدة فالـchronologie.
-- `driver_name` و `driver_phone` يتخزنو فـ`orders` ويبانو فالتفاصيل سواء من webhook أو polling.
-- التحديثات اليدوية من vendeur/admin/livreur عبر UI تبقى مسجلة عادي عبر التريغر.
+أكد لي: نمشي بـ Pass واحدة كاملة، ولا نقسم؟

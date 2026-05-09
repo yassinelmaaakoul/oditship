@@ -16,8 +16,6 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, Pencil, Trash2, Printer, Plus, Search, CheckCircle2, PackageCheck, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { COLIS_PREVIEW_SETTING_KEY, colisSectionStyle, defaultColisPreviewSettings, getColisPreviewValue, normalizeColisPreviewSettings, renderColisTemplate, sanitizeColisHtml, sortedVisibleFields, type ColisPreviewSettings } from "@/lib/colisPreview";
-import { COLIS_PAGE_PRESET_KEY, defaultColisPagePreset, normalizeColisPagePreset, type ColisPagePreset } from "@/lib/colisPagePreset";
-import { ColisCanvasPage } from "@/components/dashboard/ColisCanvasPage";
 import { getAppSetting } from "@/lib/appSettingsCache";
 
 const ORDERS_COLUMNS = "id,vendeur_id,agent_id,customer_name,customer_phone,customer_address,customer_city,product_name,order_value,open_package,comment,status,tracking_number,external_tracking_number,status_note,postponed_date,scheduled_date,created_at";
@@ -67,7 +65,6 @@ const VendeurColis = () => {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [previewSettings, setPreviewSettings] = useState<ColisPreviewSettings>(defaultColisPreviewSettings);
-  const [pagePreset, setPagePreset] = useState<ColisPagePreset>(defaultColisPagePreset);
 
   const [confirming, setConfirming] = useState(false);
   const [pickingUp, setPickingUp] = useState(false);
@@ -97,7 +94,6 @@ const VendeurColis = () => {
       supabase.from("profiles").select("id, full_name, username").eq("agent_of", user.id)
         .then(({ data }) => setAgents(data ?? []));
       getAppSetting(COLIS_PREVIEW_SETTING_KEY).then((v) => setPreviewSettings(normalizeColisPreviewSettings(v)));
-      getAppSetting(COLIS_PAGE_PRESET_KEY).then((v) => setPagePreset(normalizeColisPagePreset(v)));
     }
     const channel = supabase.channel("vendeur-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
       setOrders((current) => {
@@ -245,55 +241,10 @@ const VendeurColis = () => {
     printStickers(eligibleSticker);
   };
 
-  if (pagePreset.enabled && pagePreset.appliesTo.vendeur) {
-    return (
-      <div className="space-y-4">
-        <ColisCanvasPage
-          preset={pagePreset}
-          title="Mes commandes"
-          orders={filtered as any}
-          loading={loading}
-          actions={{
-            selectable: true,
-            isSelected: (id) => selected.has(id),
-            onToggleSelect: toggleOne,
-            isDetailsOpen: (id) => expandedOrderId === id,
-            onToggleDetails: (id) => setExpandedOrderId(expandedOrderId === id ? null : id),
-            onPrintSticker: (o) => printSticker(o as any),
-            onEdit: (o) => { setEditing({ ...(o as any), comment: (o as any).comment ?? "" }); setFormOpen(true); },
-            onDelete: (id) => setDeleteId(id),
-          }}
-          detailsRenderer={(o) => <OrderDetailsPanel order={o as any} previewSettings={previewSettings} />}
-        />
-        {user && (
-          <OrderFormDialog
-            open={formOpen}
-            onOpenChange={setFormOpen}
-            initial={editing}
-            vendeurId={isAgent ? (profile?.agent_of as string) : user.id}
-            agentId={isAgent ? user.id : null}
-            onSaved={load}
-          />
-        )}
-        <AlertDialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer cette commande ?</AlertDialogTitle>
-              <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction onClick={deleteOrder}>Supprimer</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 pb-24 pt-32 xl:pt-20">
-      <div className="fixed inset-x-0 top-14 z-30 border-b border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:left-64 lg:px-6">
+      <div className="sticky top-16 z-30 -mx-4 lg:-mx-6 border-b border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/85 lg:px-6">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 flex-col gap-2 md:flex-row md:items-center">
             <h2 className="shrink-0 text-2xl font-bold">Mes commandes</h2>

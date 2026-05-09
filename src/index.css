@@ -11,35 +11,43 @@
    Gray   #F8F9FA → 210 17% 98%
    ========================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
+/* =========================================================
+   Clean Corporate palette (Navy / White)
+   Navy   #0f1b3d → 224 60% 15%
+   Mid    #1e3a5f → 213 53% 25%
+   Accent #3b6fa0 → 211 46% 43%
+   Surf   #e8edf3 → 215 28% 93%
+   BG     #fafbfc → 210 20% 98%
+   ========================================================= */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 345 5% 13%;
+    --background: 210 20% 98%;
+    --foreground: 224 60% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 345 5% 13%;
+    --card-foreground: 224 60% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 345 5% 13%;
+    --popover-foreground: 224 60% 12%;
 
-    /* Brand: ODiT Blue */
-    --primary: 232 55% 36%;
+    /* Primary: deep navy */
+    --primary: 224 60% 15%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 232 55% 50%;
-    --primary-soft: 232 55% 96%;
+    --primary-glow: 213 53% 25%;
+    --primary-soft: 215 28% 93%;
 
-    /* Brand: ODiT Orange */
-    --accent: 13 87% 55%;
+    /* Accent: corporate steel-blue */
+    --accent: 211 46% 43%;
     --accent-foreground: 0 0% 100%;
-    --accent-soft: 13 87% 96%;
+    --accent-soft: 211 46% 95%;
 
-    --secondary: 210 17% 96%;
-    --secondary-foreground: 345 5% 13%;
+    --secondary: 215 28% 95%;
+    --secondary-foreground: 224 60% 12%;
 
-    --muted: 210 17% 96%;
-    --muted-foreground: 215 10% 45%;
+    --muted: 215 28% 95%;
+    --muted-foreground: 215 16% 42%;
 
     --destructive: 0 84% 55%;
     --destructive-foreground: 0 0% 100%;
@@ -53,32 +61,32 @@
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
-    --border: 210 16% 90%;
-    --input: 210 16% 90%;
-    --ring: 232 55% 36%;
+    --border: 215 24% 88%;
+    --input: 215 24% 88%;
+    --ring: 211 46% 43%;
 
-    --radius: 0.625rem;
+    --radius: 0.5rem;
 
-    /* Brand gradients & shadows */
-    --gradient-hero: linear-gradient(135deg, hsl(232 55% 36%) 0%, hsl(232 55% 24%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(13 87% 55%) 0%, hsl(13 87% 45%) 100%);
+    /* Corporate gradients & shadows */
+    --gradient-hero: linear-gradient(135deg, hsl(224 60% 15%) 0%, hsl(213 53% 25%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(211 46% 43%) 0%, hsl(213 53% 25%) 100%);
     --gradient-mesh:
-      radial-gradient(at 20% 0%, hsl(232 55% 36% / 0.18) 0px, transparent 50%),
-      radial-gradient(at 80% 100%, hsl(13 87% 55% / 0.15) 0px, transparent 50%);
+      radial-gradient(at 20% 0%, hsl(224 60% 15% / 0.10) 0px, transparent 50%),
+      radial-gradient(at 80% 100%, hsl(211 46% 43% / 0.10) 0px, transparent 50%);
 
-    --shadow-elegant: 0 10px 40px -10px hsl(232 55% 36% / 0.25);
-    --shadow-accent: 0 10px 30px -10px hsl(13 87% 55% / 0.35);
-    --shadow-card: 0 1px 3px 0 hsl(345 5% 13% / 0.08), 0 1px 2px -1px hsl(345 5% 13% / 0.06);
+    --shadow-elegant: 0 10px 40px -12px hsl(224 60% 15% / 0.20);
+    --shadow-accent: 0 8px 24px -8px hsl(211 46% 43% / 0.30);
+    --shadow-card: 0 1px 2px 0 hsl(224 60% 15% / 0.06), 0 1px 3px -1px hsl(224 60% 15% / 0.05);
 
-    /* Sidebar tokens for dashboards */
-    --sidebar-background: 232 55% 14%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 13 87% 55%;
+    /* Sidebar tokens (kept for shadcn sidebar component compatibility) */
+    --sidebar-background: 224 60% 12%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 211 46% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 232 55% 22%;
+    --sidebar-accent: 224 50% 20%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 232 55% 22%;
-    --sidebar-ring: 13 87% 55%;
+    --sidebar-border: 224 50% 20%;
+    --sidebar-ring: 211 46% 50%;
   }
 
   .dark {
@@ -131,7 +139,7 @@
   }
   h1, h2, h3, h4, h5, h6 {
     @apply tracking-tight;
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
   }
 }
 
