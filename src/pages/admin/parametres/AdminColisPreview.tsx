@@ -92,16 +92,40 @@ const AdminColisPreview = () => {
   const save = async () => {
     setSaving(true);
     const { data: userData } = await supabase.auth.getUser();
-    const { error } = await db.from("app_settings").upsert(
-      { key: COLIS_PREVIEW_SETTING_KEY, value: settings, updated_by: userData.user?.id ?? null },
-      { onConflict: "key" }
-    );
+    const updatedBy = userData.user?.id ?? null;
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      db.from("app_settings").upsert(
+        { key: COLIS_PREVIEW_SETTING_KEY, value: settings, updated_by: updatedBy },
+        { onConflict: "key" }
+      ),
+      db.from("app_settings").upsert(
+        { key: STATUS_BADGE_OVERRIDES_KEY, value: badgeOverrides, updated_by: updatedBy },
+        { onConflict: "key" }
+      ),
+    ]);
     setSaving(false);
+    const error = e1 || e2;
     if (error) toast.error(error.message);
     else {
       try { sessionStorage.removeItem(`app_settings:${COLIS_PREVIEW_SETTING_KEY}`); } catch { /* */ }
+      invalidateStatusBadgeOverrides();
       toast.success("Affichage Colis enregistré");
     }
+  };
+
+  const updateBadge = (status: string, patch: Partial<{ bg: string; text: string; border: string }>) => {
+    setBadgeOverrides((current) => {
+      const fallback = statusColor(status);
+      const existing = current[status] ?? { bg: fallback.hex, text: "#ffffff", border: fallback.hex };
+      return { ...current, [status]: { ...existing, ...patch } };
+    });
+  };
+  const resetBadge = (status: string) => {
+    setBadgeOverrides((current) => {
+      const next = { ...current };
+      delete next[status];
+      return next;
+    });
   };
 
   const sliderRow = (label: string, value: number, min: number, max: number, step: number, onChange: (v: number) => void) => (
