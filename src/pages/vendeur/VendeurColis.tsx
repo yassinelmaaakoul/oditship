@@ -78,12 +78,12 @@ const VendeurColis = () => {
     let query = supabase
       .from("orders")
       .select(ORDERS_COLUMNS)
-      .order("created_at", { ascending: false })
+      .order("updated_at", { ascending: false })
       .limit(1000);
     if (isAgent && colisScope === "own") query = query.eq("agent_id", user.id);
     const { data, error } = await query;
     if (error) toast.error(error.message);
-    setOrders((data ?? []) as Order[]);
+    setOrders((data ?? []) as unknown as Order[]);
     setLoading(false);
   };
 
