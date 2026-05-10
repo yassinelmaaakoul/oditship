@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, Printer } from "lucide-react";
 import { printSticker } from "@/lib/printSticker";
 
-const ORDERS_COLUMNS = "id,customer_name,customer_phone,customer_address,customer_city,product_name,order_value,open_package,comment,status,tracking_number,external_tracking_number,status_note,postponed_date,scheduled_date,created_at,vendeur_id,assigned_livreur_id,driver_name,driver_phone";
+const ORDERS_COLUMNS = "id,customer_name,customer_phone,customer_address,customer_city,product_name,order_value,open_package,comment,status,tracking_number,external_tracking_number,status_note,postponed_date,scheduled_date,created_at,updated_at,vendeur_id,assigned_livreur_id,driver_name,driver_phone";
 
 const LivreurColis = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -18,7 +18,7 @@ const LivreurColis = () => {
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
 
   useEffect(() => {
-    supabase.from("orders").select(ORDERS_COLUMNS).order("created_at", { ascending: false }).limit(500)
+    supabase.from("orders").select(ORDERS_COLUMNS).order("updated_at", { ascending: false }).limit(500)
       .then(({ data }) => { setOrders(data ?? []); setLoading(false); });
     
     const channel = supabase.channel("livreur-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
