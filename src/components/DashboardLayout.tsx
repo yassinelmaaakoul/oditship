@@ -10,9 +10,10 @@ interface Props {
 }
 
 export const DashboardLayout = ({ title, nav }: Props) => (
-  <div className="min-h-screen bg-secondary/40 flex flex-col">
+  // 0.85 ≈ -15% global zoom for the dashboard surface (less cramped UI)
+  <div className="min-h-screen bg-secondary/40 flex flex-col" style={{ zoom: 0.85 }}>
     <TopNav title={title} nav={nav} />
-    <main className="flex-1 mx-auto w-full max-w-7xl px-4 lg:px-6 py-6">
+    <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 lg:px-6 py-6">
       <Outlet />
     </main>
   </div>

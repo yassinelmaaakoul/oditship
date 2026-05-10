@@ -9,6 +9,9 @@ const DashboardRouter = () => {
 
   if (!user) return <Navigate to="/login" replace />;
 
+  // Wait for role to resolve to avoid landing on the placeholder page
+  if (!role) return <AppLoading />;
+
   let basePath = "/dashboard/placeholder";
   switch (role) {
     case "vendeur":
