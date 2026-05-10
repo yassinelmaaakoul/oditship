@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, Pencil, Trash2, Printer, Plus, Search, CheckCircle2, PackageCheck, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
-const ORDERS_COLUMNS = "id,vendeur_id,agent_id,customer_name,customer_phone,customer_address,customer_city,product_name,order_value,open_package,comment,status,tracking_number,external_tracking_number,status_note,postponed_date,scheduled_date,created_at";
+const ORDERS_COLUMNS = "id,vendeur_id,agent_id,customer_name,customer_phone,customer_address,customer_city,product_name,order_value,open_package,comment,status,tracking_number,external_tracking_number,status_note,postponed_date,scheduled_date,created_at,updated_at";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
