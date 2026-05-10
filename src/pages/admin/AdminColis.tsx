@@ -95,17 +95,6 @@ const AdminColis = () => {
     }
     return true;
   }), [orders, statusFilter, vendeurFilter, search, dateFrom, dateTo]);
-  const mainPreview = previewSettings.main;
-  const rowData = (o: Order) => ({ ...o, vendeur: vendeurMap[o.vendeur_id] || "", tracking: o.external_tracking_number || o.tracking_number || `ODiT-${o.id}` });
-  const renderMainCell = (o: Order) => {
-    const data = rowData(o);
-    if (mainPreview.useCustomHtml) return <div style={colisSectionStyle(mainPreview, data)} dangerouslySetInnerHTML={{ __html: sanitizeColisHtml(`<style>${renderColisTemplate(mainPreview.css, data)}</style>${renderColisTemplate(mainPreview.html, data)}`) }} />;
-    return <div className={cn("space-y-1 border", mainPreview.layout === "inline" && "flex flex-wrap items-center", mainPreview.layout === "grid" && "grid grid-cols-2")} style={colisSectionStyle(mainPreview, data)}>
-      <div className="flex flex-wrap items-center gap-2">{sortedVisibleFields(mainPreview, "primary").map((field) => <span key={field.key} className="font-medium">{getColisPreviewValue(data, field.key)}</span>)}</div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">{sortedVisibleFields(mainPreview, "secondary").map((field) => <span key={field.key}>{getColisPreviewValue(data, field.key)}</span>)}</div>
-      <div className="flex flex-wrap items-center gap-1.5">{sortedVisibleFields(mainPreview, "meta").map((field) => { const value = getColisPreviewValue(data, field.key); return value ? <span key={field.key} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">{value}</span> : null; })}</div>
-    </div>;
-  };
 
 
   return (
