@@ -156,7 +156,7 @@ const AdminColis = () => {
             ) : filtered.map((o) => (
               <Fragment key={o.id}>
               <TableRow>
-                <TableCell>{renderMainCell(o)}</TableCell>
+                <TableCell><ColisMainRowCell order={o} /></TableCell>
                 <TableCell className="text-sm">{vendeurMap[o.vendeur_id] || "—"}</TableCell>
                 <TableCell>{o.customer_city}</TableCell>
                 <TableCell className="font-mono text-sm">{o.customer_phone}</TableCell>
