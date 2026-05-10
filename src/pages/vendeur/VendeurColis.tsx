@@ -358,7 +358,7 @@ const VendeurColis = () => {
               {expandedOrderId === o.id && (
                 <TableRow key={`${o.id}-details`}>
                   <TableCell colSpan={7} className="bg-muted/20 p-0">
-                    <OrderDetailsPanel order={o} onOrderSynced={syncOrderInList} previewSettings={previewSettings} />
+                    <OrderDetailsPanel order={o} onOrderSynced={syncOrderInList} />
                   </TableCell>
                 </TableRow>
               )}
