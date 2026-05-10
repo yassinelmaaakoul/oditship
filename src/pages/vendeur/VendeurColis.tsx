@@ -281,22 +281,26 @@ const VendeurColis = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-9" placeholder="Rechercher (nom, téléphone, ville, tracking)" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger><SelectValue placeholder="Statut" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous statuts</SelectItem>
-              {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={agentFilter} onValueChange={setAgentFilter}>
-            <SelectTrigger><SelectValue placeholder="Agent" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous agents</SelectItem>
-              <SelectItem value="__none__" disabled>—</SelectItem>
-              {agents.map((a) => <SelectItem key={a.id} value={a.id}>{a.full_name || a.username}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2">
+          <div className="md:col-span-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger><SelectValue placeholder="Statut" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous statuts</SelectItem>
+                {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="md:col-span-2">
+            <Select value={agentFilter} onValueChange={setAgentFilter}>
+              <SelectTrigger><SelectValue placeholder="Agent" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous agents</SelectItem>
+                <SelectItem value="__none__" disabled>—</SelectItem>
+                {agents.map((a) => <SelectItem key={a.id} value={a.id}>{a.full_name || a.username}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="md:col-span-4 flex gap-2">
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </div>
