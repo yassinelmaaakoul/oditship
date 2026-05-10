@@ -44,6 +44,7 @@ interface Order {
   scheduled_date: string | null;
   agent_id: string | null;
   created_at: string;
+  updated_at?: string | null;
 }
 
 const VendeurColis = () => {
