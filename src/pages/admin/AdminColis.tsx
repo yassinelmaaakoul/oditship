@@ -95,6 +95,10 @@ const AdminColis = () => {
       ) return false;
     }
     return true;
+  }).sort((a, b) => {
+    const ta = new Date(a.updated_at || a.created_at).getTime();
+    const tb = new Date(b.updated_at || b.created_at).getTime();
+    return tb - ta;
   }), [orders, statusFilter, vendeurFilter, search, dateFrom, dateTo]);
 
 
