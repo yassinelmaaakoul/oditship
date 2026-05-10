@@ -91,7 +91,6 @@ const VendeurColis = () => {
     if (user) {
       supabase.from("profiles").select("id, full_name, username").eq("agent_of", user.id)
         .then(({ data }) => setAgents(data ?? []));
-      getAppSetting(COLIS_PREVIEW_SETTING_KEY).then((v) => setPreviewSettings(normalizeColisPreviewSettings(v)));
     }
     const channel = supabase.channel("vendeur-orders-live").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
       setOrders((current) => {
