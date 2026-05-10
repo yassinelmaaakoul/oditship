@@ -244,7 +244,7 @@ const AdminColisPreview = () => {
                 <p className="text-[10px] text-muted-foreground">
                   Variables : {variableHints[s.key].map((v) => `{{${v}}}`).join("  ·  ")}
                   <br />
-                  Conditionnel : <code>{`{{#if comment}}…{{/if}}`}</code>
+                  Conditionnel : <code>{`{{#if key}}…{{/if}}`}</code> · Boucle : <code>{`{{#each items}}…{{/each}}`}</code>
                 </p>
               </Card>
 
@@ -254,7 +254,13 @@ const AdminColisPreview = () => {
                   <PreviewBox
                     html={settings[s.key].html}
                     css={settings[s.key].css}
-                    data={s.key === active ? sampleData : (s.key === "mainRow" ? buildMainRowData(canvasSampleOrder) : buildDetailsData(canvasSampleOrder, { qr_image_src: qrSrc, livreur_name: "Demo Driver", livreur_phone: "0600000000", support_name: "Support ODiT", support_phone: "0500000000" }))}
+                    data={
+                      s.key === "mainRow"
+                        ? buildMainRowData(canvasSampleOrder)
+                        : s.key === "timeline"
+                        ? buildTimelineData(canvasSampleTimeline)
+                        : buildDetailsData(canvasSampleOrder, { qr_image_src: qrSrc, livreur_name: "Smailerrachidia25 — Samil", livreur_phone: "0719302120", support_name: "Support ODiT", support_phone: "0500000000" })
+                    }
                     scopeKey={`canvas-preview-${s.key}`}
                   />
                 </div>
