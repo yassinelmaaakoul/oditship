@@ -63,7 +63,6 @@ const VendeurColis = () => {
   const [agents, setAgents] = useState<{ id: string; full_name: string | null; username: string }[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
-  const [previewSettings, setPreviewSettings] = useState<ColisPreviewSettings>(defaultColisPreviewSettings);
 
   const [confirming, setConfirming] = useState(false);
   const [pickingUp, setPickingUp] = useState(false);
