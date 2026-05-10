@@ -176,7 +176,7 @@ const AdminColis = () => {
               {expandedOrderId === o.id && (
                 <TableRow>
                   <TableCell colSpan={7} className="bg-muted/20 p-0">
-                    <OrderDetailsPanel order={o} onOrderSynced={(updated) => setOrders((current) => current.map((order) => order.id === updated.id ? { ...order, ...updated } : order))} previewSettings={previewSettings} />
+                    <OrderDetailsPanel order={o} onOrderSynced={(updated) => setOrders((current) => current.map((order) => order.id === updated.id ? { ...order, ...updated } : order))} />
                   </TableCell>
                 </TableRow>
               )}
