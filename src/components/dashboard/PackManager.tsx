@@ -199,9 +199,19 @@ const LinkCitiesDialog = ({ pack, onClose, cities, pickupCities, showPickupDimen
     setSelected(new Set());
   }, [pack]);
 
+  // Cities already linked to OTHER packs (same scope/owner) for current pickup => excluded
+  const takenCities = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of otherPackLinks) {
+      if (l.pickup_city === pickup || l.pickup_city === "*" || pickup === "*") set.add(l.destination_city);
+    }
+    return set;
+  }, [otherPackLinks, pickup]);
+  const availableCities = useMemo(() => cities.filter((c) => !takenCities.has(c.name)), [cities, takenCities]);
+
   const toggleAll = (v: boolean) => {
     setAllDest(v);
-    if (v) setSelected(new Set(cities.map((c) => c.name)));
+    if (v) setSelected(new Set(availableCities.map((c) => c.name)));
     else setSelected(new Set());
   };
 
@@ -266,7 +276,7 @@ const LinkCitiesDialog = ({ pack, onClose, cities, pickupCities, showPickupDimen
             </div>
             {!allDest && (
               <div className="border rounded-md p-2 max-h-64 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-1">
-                {cities.map((c) => {
+                {availableCities.map((c) => {
                   const checked = selected.has(c.name);
                   return (
                     <label key={c.id} className="flex items-center gap-2 text-sm px-2 py-1 hover:bg-accent rounded cursor-pointer">
@@ -279,8 +289,11 @@ const LinkCitiesDialog = ({ pack, onClose, cities, pickupCities, showPickupDimen
                     </label>
                   );
                 })}
-                {cities.length === 0 && <div className="text-sm text-muted-foreground p-2 col-span-full">Aucune ville disponible.</div>}
+                {availableCities.length === 0 && <div className="text-sm text-muted-foreground p-2 col-span-full">Toutes les villes sont déjà liées à d'autres packs.</div>}
               </div>
+            )}
+            {takenCities.size > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">{takenCities.size} ville(s) masquée(s) car déjà liée(s) à un autre pack.</p>
             )}
           </div>
         </div>
