@@ -21,13 +21,15 @@ interface Props {
   allowedDestinationCities?: string[];
   /** Whether to show the pickup-city dimension (for global packs). For vendeur/livreur it's hidden. */
   showPickupDimension?: boolean;
+  /** Hide delivery-delay field (custom packs only override price, not the global delay). */
+  hideDelay?: boolean;
   title?: string;
 }
 
 interface City { id: number; name: string; }
 interface PickupCity { id: number; name: string; }
 
-const PackManager = ({ scope, ownerId, allowedDestinationCities, showPickupDimension = true, title }: Props) => {
+const PackManager = ({ scope, ownerId, allowedDestinationCities, showPickupDimension = true, hideDelay = false, title }: Props) => {
   const [packs, setPacks] = useState<PricingPack[]>([]);
   const [links, setLinks] = useState<PricingPackLink[]>([]);
   const [cities, setCities] = useState<City[]>([]);
@@ -115,7 +117,7 @@ const PackManager = ({ scope, ownerId, allowedDestinationCities, showPickupDimen
                   <div>
                     <div className="font-medium">{p.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      Livraison {p.delivery_fee} · Refus {p.refusal_fee} · Annul. {p.annulation_fee} · Délai {p.delivery_delay_hours}h
+                      Livraison {p.delivery_fee} · Refus {p.refusal_fee} · Annul. {p.annulation_fee}{!hideDelay && ` · Délai ${p.delivery_delay_hours}h`}
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -151,7 +153,7 @@ const PackManager = ({ scope, ownerId, allowedDestinationCities, showPickupDimen
               <div><Label>Frais de livraison</Label><Input type="number" step="0.01" value={editPack?.delivery_fee ?? 0} onChange={(e) => setEditPack({ ...editPack!, delivery_fee: Number(e.target.value) })} /></div>
               <div><Label>Frais de refus</Label><Input type="number" step="0.01" value={editPack?.refusal_fee ?? 0} onChange={(e) => setEditPack({ ...editPack!, refusal_fee: Number(e.target.value) })} /></div>
               <div><Label>Frais d'annulation</Label><Input type="number" step="0.01" value={editPack?.annulation_fee ?? 0} onChange={(e) => setEditPack({ ...editPack!, annulation_fee: Number(e.target.value) })} /></div>
-              <div><Label>Délai livraison (heures)</Label><Input type="number" value={editPack?.delivery_delay_hours ?? 48} onChange={(e) => setEditPack({ ...editPack!, delivery_delay_hours: Number(e.target.value) })} /></div>
+              {!hideDelay && <div><Label>Délai livraison (heures)</Label><Input type="number" value={editPack?.delivery_delay_hours ?? 48} onChange={(e) => setEditPack({ ...editPack!, delivery_delay_hours: Number(e.target.value) })} /></div>}
             </div>
           </div>
           <DialogFooter>
