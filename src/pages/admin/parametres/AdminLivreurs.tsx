@@ -152,9 +152,14 @@ const AdminLivreurs = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="default" size="sm" onClick={() => window.open(`/admin/livreurs/${l.id}/workflows`, "_blank")}>
-                      <Zap className="h-4 w-4 mr-1" /> Workflows
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button variant="default" size="sm" onClick={() => window.open(`/admin/livreurs/${l.id}/workflows`, "_blank")}>
+                        <Zap className="h-4 w-4 mr-1" /> Workflows
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setTarifsTarget(l)}>
+                        <Wallet className="h-4 w-4 mr-1" /> Tarifs
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -163,6 +168,22 @@ const AdminLivreurs = () => {
         </Table>
       </Card>
 
+      <Dialog open={!!tarifsTarget} onOpenChange={(o) => !o && setTarifsTarget(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tarifs personnalisés — {tarifsTarget?.full_name || tarifsTarget?.username}</DialogTitle>
+          </DialogHeader>
+          {tarifsTarget && (
+            <PackManager
+              scope="livreur"
+              ownerId={tarifsTarget.id}
+              showPickupDimension={false}
+              allowedDestinationCities={citiesOfLivreur(tarifsTarget.id)}
+              title={`Villes restreintes aux hubs assignés (${citiesOfLivreur(tarifsTarget.id).length})`}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
