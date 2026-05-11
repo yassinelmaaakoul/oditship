@@ -171,6 +171,7 @@ const PackManager = ({ scope, ownerId, allowedDestinationCities, showPickupDimen
         pickupCities={pickupCities}
         showPickupDimension={showPickupDimension}
         existingLinks={linkPack ? links.filter((l) => l.pack_id === linkPack.id) : []}
+        otherPackLinks={linkPack ? links.filter((l) => l.pack_id !== linkPack.id) : []}
       />
     </div>
   );
@@ -183,9 +184,10 @@ interface LinkProps {
   pickupCities: { id: number; name: string }[];
   showPickupDimension: boolean;
   existingLinks: PricingPackLink[];
+  otherPackLinks: PricingPackLink[];
 }
 
-const LinkCitiesDialog = ({ pack, onClose, cities, pickupCities, showPickupDimension, existingLinks }: LinkProps) => {
+const LinkCitiesDialog = ({ pack, onClose, cities, pickupCities, showPickupDimension, existingLinks, otherPackLinks }: LinkProps) => {
   const [pickup, setPickup] = useState<string>("*");
   const [allDest, setAllDest] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
