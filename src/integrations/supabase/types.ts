@@ -631,6 +631,24 @@ export type Database = {
           },
         ]
       }
+      pickup_cities: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
       plain_passwords: {
         Row: {
           password: string
@@ -646,6 +664,77 @@ export type Database = {
           password?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      pricing_pack_links: {
+        Row: {
+          created_at: string
+          destination_city: string
+          id: number
+          pack_id: number
+          pickup_city: string
+        }
+        Insert: {
+          created_at?: string
+          destination_city?: string
+          id?: number
+          pack_id: number
+          pickup_city?: string
+        }
+        Update: {
+          created_at?: string
+          destination_city?: string
+          id?: number
+          pack_id?: number
+          pickup_city?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_pack_links_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_packs: {
+        Row: {
+          annulation_fee: number
+          created_at: string
+          delivery_delay_hours: number
+          delivery_fee: number
+          id: number
+          name: string
+          owner_id: string | null
+          refusal_fee: number
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          annulation_fee?: number
+          created_at?: string
+          delivery_delay_hours?: number
+          delivery_fee?: number
+          id?: number
+          name: string
+          owner_id?: string | null
+          refusal_fee?: number
+          scope?: string
+          updated_at?: string
+        }
+        Update: {
+          annulation_fee?: number
+          created_at?: string
+          delivery_delay_hours?: number
+          delivery_fee?: number
+          id?: number
+          name?: string
+          owner_id?: string | null
+          refusal_fee?: number
+          scope?: string
+          updated_at?: string
         }
         Relationships: []
       }

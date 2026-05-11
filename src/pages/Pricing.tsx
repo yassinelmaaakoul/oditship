@@ -5,8 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { fetchAllPacks, resolvePrice, type PricingPack, type PricingPackLink } from "@/lib/pricingResolver";
 
-interface Rule {
+interface City { id: number; name: string; }
+interface PickupCity { id: number; name: string; }
+
+interface LegacyRule {
   city: string;
   delivery_fee: number;
   refusal_fee: number;
@@ -14,28 +19,57 @@ interface Rule {
 }
 
 const PAGE_SIZE = 20;
+const formatDelay = (h: number) => {
+  if (!h) return "—";
+  if (h < 24) return `${h}h`;
+  const d = Math.round(h / 24);
+  return `${d} j`;
+};
 
 const Pricing = () => {
-  const [rules, setRules] = useState<Rule[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [pickupCities, setPickupCities] = useState<PickupCity[]>([]);
+  const [packs, setPacks] = useState<PricingPack[]>([]);
+  const [links, setLinks] = useState<PricingPackLink[]>([]);
+  const [legacy, setLegacy] = useState<LegacyRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pickup, setPickup] = useState<string>("*");
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("pricing_rules")
-        .select("city, delivery_fee, refusal_fee, annulation_fee")
-        .is("vendeur_id", null)
-        .order("city");
-      setRules(data ?? []);
+      const [c, pc, packsAll, legacyRes] = await Promise.all([
+        supabase.from("cities").select("id, name").order("name"),
+        (supabase as any).from("pickup_cities").select("id, name").order("name"),
+        fetchAllPacks(),
+        supabase.from("pricing_rules").select("city, delivery_fee, refusal_fee, annulation_fee").is("vendeur_id", null),
+      ]);
+      setCities((c.data ?? []) as City[]);
+      setPickupCities((pc.data ?? []) as PickupCity[]);
+      setPacks(packsAll.packs);
+      setLinks(packsAll.links);
+      setLegacy((legacyRes.data ?? []) as LegacyRule[]);
       setLoading(false);
     })();
   }, []);
 
+  const rows = useMemo(() => {
+    const pickupCity = pickup === "*" ? null : pickup;
+    const legacyMap = new Map(legacy.map((r) => [r.city, r]));
+    return cities.map((city) => {
+      const r = resolvePrice(packs, links, { pickupCity, destCity: city.name });
+      if (r.source === "fallback") {
+        const l = legacyMap.get(city.name);
+        if (l) return { city: city.name, delivery_fee: l.delivery_fee, refusal_fee: l.refusal_fee, annulation_fee: l.annulation_fee, delay: 0 };
+      }
+      return { city: city.name, delivery_fee: r.delivery_fee, refusal_fee: r.refusal_fee, annulation_fee: r.annulation_fee, delay: r.delivery_delay_hours };
+    });
+  }, [cities, packs, links, legacy, pickup]);
+
   const filtered = useMemo(
-    () => rules.filter((r) => r.city.toLowerCase().includes(search.toLowerCase())),
-    [rules, search]
+    () => rows.filter((r) => r.city.toLowerCase().includes(search.toLowerCase())),
+    [rows, search]
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -55,14 +89,23 @@ const Pricing = () => {
       <Card>
         <CardContent className="p-0">
           <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Rechercher une ville..."
-                className="pl-9"
-              />
+            <div className="flex flex-col sm:flex-row gap-3 flex-1">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  placeholder="Rechercher une ville..."
+                  className="pl-9"
+                />
+              </div>
+              <Select value={pickup} onValueChange={(v) => { setPickup(v); setPage(1); }}>
+                <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Ville de ramassage" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="*">Toutes villes de ramassage</SelectItem>
+                  {pickupCities.map((c) => <SelectItem key={c.id} value={c.name}>Ramassage : {c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <p className="text-sm text-muted-foreground">{filtered.length} villes</p>
           </div>
@@ -75,6 +118,7 @@ const Pricing = () => {
                   <th className="px-4 py-3 font-semibold text-right">Frais de livraison</th>
                   <th className="px-4 py-3 font-semibold text-right">Frais de refus</th>
                   <th className="px-4 py-3 font-semibold text-right">Frais d'annulation</th>
+                  <th className="px-4 py-3 font-semibold text-right">Délai livraison</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,16 +129,18 @@ const Pricing = () => {
                       <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
                       <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
                       <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
                     </tr>
                   ))
                 ) : slice.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">Aucune ville trouvée.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">Aucune ville trouvée.</td></tr>
                 ) : slice.map((r) => (
                   <tr key={r.city} className="border-t border-border hover:bg-secondary/40 transition-colors">
                     <td className="px-4 py-3 capitalize font-medium">{r.city}</td>
                     <td className="px-4 py-3 text-right font-mono">{Number(r.delivery_fee).toFixed(2)} MAD</td>
                     <td className="px-4 py-3 text-right font-mono">{Number(r.refusal_fee).toFixed(2)} MAD</td>
                     <td className="px-4 py-3 text-right font-mono">{Number(r.annulation_fee).toFixed(2)} MAD</td>
+                    <td className="px-4 py-3 text-right font-mono">{formatDelay(r.delay)}</td>
                   </tr>
                 ))}
               </tbody>

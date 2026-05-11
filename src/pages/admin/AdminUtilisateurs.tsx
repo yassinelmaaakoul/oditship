@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, UserX, UserCheck, LogIn, Search, Trash2 } from "lucide-react";
+import { Plus, Pencil, UserX, UserCheck, LogIn, Search, Trash2, Wallet } from "lucide-react";
+import PackManager from "@/components/dashboard/PackManager";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -198,6 +199,7 @@ const AdminUtilisateurs = () => {
   };
 
   const [deleteTarget, setDeleteTarget] = useState<ProfileRow | null>(null);
+  const [tarifsTarget, setTarifsTarget] = useState<ProfileRow | null>(null);
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     try {
@@ -291,6 +293,11 @@ const AdminUtilisateurs = () => {
                 <TableCell className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleDateString("fr-FR")}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)} title="Modifier"><Pencil className="h-4 w-4" /></Button>
+                  {r.role === "vendeur" && (
+                    <Button variant="ghost" size="icon" onClick={() => setTarifsTarget(r)} title="Tarif personnalisé">
+                      <Wallet className="h-4 w-4 text-primary" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={() => loginAs(r)} disabled={r.id === user?.id} title="Se connecter en tant que">
                     <LogIn className="h-4 w-4" />
                   </Button>
@@ -403,6 +410,22 @@ const AdminUtilisateurs = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!tarifsTarget} onOpenChange={(o) => !o && setTarifsTarget(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tarif personnalisé — {tarifsTarget?.full_name || tarifsTarget?.username}</DialogTitle>
+          </DialogHeader>
+          {tarifsTarget && (
+            <PackManager
+              scope="vendeur"
+              ownerId={tarifsTarget.id}
+              showPickupDimension={false}
+              title="Packs personnalisés du vendeur"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

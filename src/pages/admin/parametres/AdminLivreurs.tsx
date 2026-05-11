@@ -8,8 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, Eye, EyeOff, RefreshCw, Zap } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, RefreshCw, Zap, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PackManager from "@/components/dashboard/PackManager";
 
 interface Livreur { id: string; username: string; full_name: string | null; api_enabled: boolean; api_token: string | null; }
 interface Hub { id: number; name: string; }
@@ -29,18 +31,27 @@ const AdminLivreurs = () => {
   const [hubLivreurs, setHubLivreurs] = useState<HubLivreur[]>([]);
   const [show, setShow] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [tarifsTarget, setTarifsTarget] = useState<Livreur | null>(null);
+  const [hubCities, setHubCities] = useState<Array<{ hub_id: number; city_name: string }>>([]);
 
   const load = async () => {
-    const [p, h, hl] = await Promise.all([
+    const [p, h, hl, hc] = await Promise.all([
       db.from("profiles").select("id, username, full_name, api_enabled, api_token").eq("role", "livreur").order("username"),
       supabase.from("hubs").select("id, name").order("name"),
       supabase.from("hub_livreur").select("hub_id, livreur_id"),
+      supabase.from("hub_cities").select("hub_id, city_name"),
     ]);
     setLivreurs((p.data ?? []) as Livreur[]);
     setHubs((h.data ?? []) as Hub[]);
     setHubLivreurs((hl.data ?? []) as HubLivreur[]);
+    setHubCities((hc.data ?? []) as Array<{ hub_id: number; city_name: string }>);
   };
   useEffect(() => { load(); }, []);
+
+  const citiesOfLivreur = (livreurId: string) => {
+    const myHubIds = new Set(hubLivreurs.filter((x) => x.livreur_id === livreurId).map((x) => x.hub_id));
+    return Array.from(new Set(hubCities.filter((x) => myHubIds.has(x.hub_id)).map((x) => x.city_name)));
+  };
 
   const hubsOf = (livreurId: string) => hubLivreurs.filter((x) => x.livreur_id === livreurId).map((x) => x.hub_id);
   const hubAssignedTo = (hubId: number) => hubLivreurs.find((x) => x.hub_id === hubId)?.livreur_id;
@@ -141,9 +152,14 @@ const AdminLivreurs = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="default" size="sm" onClick={() => window.open(`/admin/livreurs/${l.id}/workflows`, "_blank")}>
-                      <Zap className="h-4 w-4 mr-1" /> Workflows
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button variant="default" size="sm" onClick={() => window.open(`/admin/livreurs/${l.id}/workflows`, "_blank")}>
+                        <Zap className="h-4 w-4 mr-1" /> Workflows
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setTarifsTarget(l)}>
+                        <Wallet className="h-4 w-4 mr-1" /> Tarifs
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -152,6 +168,22 @@ const AdminLivreurs = () => {
         </Table>
       </Card>
 
+      <Dialog open={!!tarifsTarget} onOpenChange={(o) => !o && setTarifsTarget(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tarifs personnalisés — {tarifsTarget?.full_name || tarifsTarget?.username}</DialogTitle>
+          </DialogHeader>
+          {tarifsTarget && (
+            <PackManager
+              scope="livreur"
+              ownerId={tarifsTarget.id}
+              showPickupDimension={false}
+              allowedDestinationCities={citiesOfLivreur(tarifsTarget.id)}
+              title={`Villes restreintes aux hubs assignés (${citiesOfLivreur(tarifsTarget.id).length})`}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
