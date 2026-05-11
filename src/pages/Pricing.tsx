@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ChevronsUpDown, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { fetchAllPacks, resolvePrice, type PricingPack, type PricingPackLink } from "@/lib/pricingResolver";
 
 interface City { id: number; name: string; }
@@ -35,7 +37,8 @@ const Pricing = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [pickup, setPickup] = useState<string>("*");
+  const [pickup, setPickup] = useState<string>("");
+  const [pickupOpen, setPickupOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -46,7 +49,9 @@ const Pricing = () => {
         supabase.from("pricing_rules").select("city, delivery_fee, refusal_fee, annulation_fee").is("vendeur_id", null),
       ]);
       setCities((c.data ?? []) as City[]);
-      setPickupCities((pc.data ?? []) as PickupCity[]);
+      const pcList = (pc.data ?? []) as PickupCity[];
+      setPickupCities(pcList);
+      if (pcList.length > 0) setPickup(pcList[0].name);
       setPacks(packsAll.packs);
       setLinks(packsAll.links);
       setLegacy((legacyRes.data ?? []) as LegacyRule[]);
@@ -55,7 +60,7 @@ const Pricing = () => {
   }, []);
 
   const rows = useMemo(() => {
-    const pickupCity = pickup === "*" ? null : pickup;
+    const pickupCity = pickup || null;
     const legacyMap = new Map(legacy.map((r) => [r.city, r]));
     return cities.map((city) => {
       const r = resolvePrice(packs, links, { pickupCity, destCity: city.name });
@@ -99,13 +104,30 @@ const Pricing = () => {
                   className="pl-9"
                 />
               </div>
-              <Select value={pickup} onValueChange={(v) => { setPickup(v); setPage(1); }}>
-                <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Ville de ramassage" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="*">Toutes villes de ramassage</SelectItem>
-                  {pickupCities.map((c) => <SelectItem key={c.id} value={c.name}>Ramassage : {c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Popover open={pickupOpen} onOpenChange={setPickupOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full sm:w-64 justify-between font-normal">
+                    {pickup ? `Ramassage : ${pickup}` : "Ville de ramassage"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Rechercher une ville..." />
+                    <CommandList>
+                      <CommandEmpty>Aucune ville.</CommandEmpty>
+                      <CommandGroup>
+                        {pickupCities.map((c) => (
+                          <CommandItem key={c.id} value={c.name} onSelect={() => { setPickup(c.name); setPickupOpen(false); setPage(1); }}>
+                            <Check className={cn("mr-2 h-4 w-4", pickup === c.name ? "opacity-100" : "opacity-0")} />
+                            {c.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <p className="text-sm text-muted-foreground">{filtered.length} villes</p>
           </div>

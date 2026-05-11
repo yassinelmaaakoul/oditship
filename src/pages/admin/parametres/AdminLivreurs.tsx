@@ -178,6 +178,7 @@ const AdminLivreurs = () => {
               scope="livreur"
               ownerId={tarifsTarget.id}
               showPickupDimension={false}
+              hideDelay
               allowedDestinationCities={citiesOfLivreur(tarifsTarget.id)}
               title={`Villes restreintes aux hubs assignés (${citiesOfLivreur(tarifsTarget.id).length})`}
             />
