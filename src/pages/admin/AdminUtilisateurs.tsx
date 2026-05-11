@@ -421,6 +421,7 @@ const AdminUtilisateurs = () => {
               scope="vendeur"
               ownerId={tarifsTarget.id}
               showPickupDimension={false}
+              hideDelay
               title="Packs personnalisés du vendeur"
             />
           )}
