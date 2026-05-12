@@ -188,3 +188,52 @@ export const setInvoicePaid = async (
   }
   return inv;
 };
+
+/**
+ * Recompute and persist net_amount for one invoice. Used after the admin
+ * tweaks line items or the "autre tarif" extra fee.
+ *
+ *   vendor invoice → net = COD(delivered) − (delivery_fees + refused_fees + annule_fees + extra)
+ *   livreur invoice → net = (delivery_fees + refused_fees + annule_fees) + extra
+ */
+export const recomputeInvoiceTotals = async (invoiceId: number) => {
+  const { data: inv, error: e1 } = await db
+    .from("invoices")
+    .select("recipient_type, extra_amount")
+    .eq("id", invoiceId)
+    .single();
+  if (e1) throw e1;
+  const { data: its, error: e2 } = await db
+    .from("invoice_items")
+    .select("order_value, fee_amount, fee_type")
+    .eq("invoice_id", invoiceId);
+  if (e2) throw e2;
+
+  const items = (its ?? []) as any[];
+  const sumBy = (pred: (i: any) => boolean, key: "order_value" | "fee_amount") =>
+    items.filter(pred).reduce((a, i) => a + Number(i[key] || 0), 0);
+
+  const total_delivered = sumBy((i) => i.fee_type === "livraison", "order_value");
+  const delivery_fees = sumBy((i) => i.fee_type === "livraison", "fee_amount");
+  const total_refused_fees = sumBy((i) => i.fee_type === "refus", "fee_amount");
+  const total_annule_fees = sumBy((i) => i.fee_type === "annulation", "fee_amount");
+  const extra = Number(inv?.extra_amount || 0);
+  const totalFees = delivery_fees + total_refused_fees + total_annule_fees;
+  const net_amount =
+    inv?.recipient_type === "vendeur"
+      ? total_delivered - totalFees - extra
+      : totalFees + extra;
+
+  const { error: e3 } = await db
+    .from("invoices")
+    .update({
+      total_delivered_amount: total_delivered,
+      delivery_fees,
+      total_refused_fees,
+      total_annule_fees,
+      net_amount,
+    })
+    .eq("id", invoiceId);
+  if (e3) throw e3;
+  return { net_amount, total_delivered, totalFees, extra };
+};
