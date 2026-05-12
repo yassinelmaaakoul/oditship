@@ -9,6 +9,8 @@ export interface ExportInvoice {
   period_end: string;
   net_amount: number;
   status: string;
+  extra_amount?: number;
+  extra_description?: string | null;
 }
 export interface ExportItem {
   tracking_number: string | null;
