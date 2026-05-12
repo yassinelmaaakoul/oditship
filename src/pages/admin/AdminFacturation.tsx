@@ -245,7 +245,8 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
       status: inv.status,
     };
     const items = (its ?? []) as Item[];
-    fmt === "pdf" ? exportInvoicePdf(exportData, items) : exportInvoiceCsv(exportData, items);
+    if (fmt === "pdf") exportInvoicePdf(exportData, items);
+    else exportInvoiceCsv(exportData, items);
   };
 
   const targetLabel = (id: string) => {
