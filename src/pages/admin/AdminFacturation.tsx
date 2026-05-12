@@ -260,8 +260,8 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
           <TableHeader>
             <TableRow>
               <TableHead>{type === "vendeur" ? "Vendeur" : "Livreur"}</TableHead>
-              <TableHead>Période</TableHead>
-              <TableHead>Net</TableHead>
+              <TableHead>Commandes / COD</TableHead>
+              <TableHead>Reste</TableHead>
               <TableHead>Statut</TableHead>
               <TableHead>Créée</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -270,29 +270,34 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
           <TableBody>
             {invoices.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
-            ) : invoices.map((inv) => (
+            ) : invoices.map((inv) => {
+              const s = summary[inv.id];
+              return (
               <TableRow key={inv.id} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpen(inv)}>
                 <TableCell className="font-medium">{profileName(type === "vendeur" ? inv.vendeur_id : inv.livreur_id)}</TableCell>
-                <TableCell className="text-sm">{inv.period_start} → {inv.period_end}</TableCell>
+                <TableCell className="text-sm">
+                  <div>{s?.count ?? 0} commande(s)</div>
+                  <div className="text-xs text-muted-foreground font-mono">COD : {(s?.cod ?? 0).toFixed(2)}</div>
+                </TableCell>
                 <TableCell className="font-mono">{Number(inv.net_amount).toFixed(2)}</TableCell>
-                <TableCell>
-                  <Badge variant={inv.status === "paid" ? "default" : "secondary"}>
-                    {inv.status === "paid" ? "Payée" : "Non payée"}
-                  </Badge>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {inv.status === "paid" ? (
+                    <Badge variant="default" className="cursor-pointer" onClick={() => markUnpaid(inv)} title="Marquer comme non payée">Payée</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="cursor-pointer" onClick={() => setPayOpen(inv)} title="Enregistrer le paiement">Non payée</Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm" title="PDF" onClick={() => exportInvoice(inv, "pdf")}><FileText className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" title="CSV" onClick={() => exportInvoice(inv, "csv")}><FileSpreadsheet className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => togglePaid(inv)}>
-                    {inv.status === "paid" ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => exportInvoice(inv, "pdf")}><FileText className="h-4 w-4 mr-1" />PDF</Button>
+                  <Button variant="outline" size="sm" onClick={() => exportInvoice(inv, "csv")}><FileSpreadsheet className="h-4 w-4 mr-1" />CSV</Button>
                   <Button variant="ghost" size="sm" onClick={() => deleteInvoice(inv.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
