@@ -106,10 +106,11 @@ export const generateInvoices = async (opts: GenerateOptions) => {
     const total_refused_fees = sum(items.filter((i) => i.fee_type === "refus").map((i) => i.fee_amount));
     const total_annule_fees = sum(items.filter((i) => i.fee_type === "annulation").map((i) => i.fee_amount));
     const delivery_fees = sum(items.filter((i) => i.fee_type === "livraison").map((i) => i.fee_amount));
+    const totalFees = delivery_fees + total_refused_fees + total_annule_fees;
+    // Vendor invoice → recipient receives COD minus all fees.
+    // Driver invoice → recipient is paid the sum of fees they earned.
     const net_amount =
-      recipientType === "vendeur"
-        ? total_delivered - delivery_fees - total_refused_fees - total_annule_fees
-        : delivery_fees + total_refused_fees + total_annule_fees;
+      recipientType === "vendeur" ? total_delivered - totalFees : totalFees;
 
     const dates = items.map((i) => i._updated_at).filter(Boolean).sort();
     const period_start = (dates[0] ?? new Date().toISOString()).slice(0, 10);
