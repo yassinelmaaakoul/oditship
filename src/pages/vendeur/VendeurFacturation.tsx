@@ -134,14 +134,15 @@ const VendeurFacturation = () => {
               <TableHead>Autre tarif</TableHead>
               <TableHead>Reste</TableHead>
               <TableHead>Statut</TableHead>
+              <TableHead>Preuve payante</TableHead>
               <TableHead>Créée</TableHead>
               <TableHead className="text-right">Export</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoices.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
-            ) : invoices.map((inv) => {
+            {filteredInvoices.length === 0 ? (
+              <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
+            ) : filteredInvoices.map((inv) => {
               const s = summary[inv.id];
               return (
               <TableRow key={inv.id} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpen(inv)}>
@@ -166,13 +167,13 @@ const VendeurFacturation = () => {
                     {inv.payment_reference && <span className="text-xs text-muted-foreground font-mono">Réf: {inv.payment_reference}</span>}
                   </div>
                 </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {inv.status === "paid" ? <PaymentProofThumb path={inv.payment_proof_url} /> : <span className="text-xs text-muted-foreground">—</span>}
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                   <Button size="sm" variant="outline" onClick={() => exportInvoice(inv, "pdf")}><FileText className="h-4 w-4 mr-1" />PDF</Button>
                   <Button size="sm" variant="outline" onClick={() => exportInvoice(inv, "csv")}><FileSpreadsheet className="h-4 w-4 mr-1" />CSV</Button>
-                  {inv.payment_proof_url && (
-                    <Button size="sm" variant="ghost" onClick={() => viewProof(inv.payment_proof_url!)} title="Voir preuve de paiement"><ImageIcon className="h-4 w-4" /></Button>
-                  )}
                 </TableCell>
               </TableRow>
               );
