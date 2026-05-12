@@ -134,8 +134,11 @@ const VendeurFacturation = () => {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Facture #{open?.id}</DialogTitle></DialogHeader>
           {open && (
-            <div className="text-sm text-muted-foreground mb-2">
-              {summary[open.id]?.count ?? items.length} commande(s) · COD : <strong>{(summary[open.id]?.cod ?? 0).toFixed(2)}</strong> · Reste : <strong>{Number(open.net_amount).toFixed(2)}</strong>
+            <div className="text-sm text-muted-foreground mb-2 space-y-1">
+              <div>{summary[open.id]?.count ?? items.length} commande(s) · COD : <strong>{(summary[open.id]?.cod ?? 0).toFixed(2)}</strong> · Tarif : <strong>{(summary[open.id]?.fees ?? 0).toFixed(2)}</strong> · Reste : <strong>{Number(open.net_amount).toFixed(2)}</strong></div>
+              {Number(open.extra_amount || 0) > 0 && (
+                <div>Autre tarif : <strong className="font-mono">{Number(open.extra_amount).toFixed(2)}</strong>{open.extra_description ? ` — ${open.extra_description}` : ""}</div>
+              )}
             </div>
           )}
           <Table>
