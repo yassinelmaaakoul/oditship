@@ -99,7 +99,7 @@ const AdminLivreurs = () => {
           </TableHeader>
           <TableBody>
             {livreurs.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No drivers</TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No drivers</TableCell></TableRow>
             ) : livreurs.map((l) => {
               const assigned = hubsOf(l.id);
               return (
