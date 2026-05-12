@@ -7,54 +7,73 @@ export interface GenerateOptions {
   recipientType: "vendeur" | "livreur";
   /** Optional: only generate for one recipient. Otherwise process all eligible. */
   targetId?: string;
-  periodStart: string; // YYYY-MM-DD
-  periodEnd: string;   // YYYY-MM-DD
 }
 
-/**
- * Statuses considered "billable" for both flows.
- * - delivered → full delivery fee + collect order_value
- * - refused/cancelled → only the corresponding fee
- */
 const DELIVERED = ["Livré", "Delivered"];
 const REFUSED = ["Refusé", "Refused"];
 const CANCELLED = ["Annulé", "Cancelled", "Annule"];
+const BILLABLE = [...DELIVERED, ...REFUSED, ...CANCELLED];
 
 const sum = (arr: number[]) => arr.reduce((a, b) => a + (Number(b) || 0), 0);
 
-export const generateInvoices = async (opts: GenerateOptions) => {
-  const { recipientType, targetId, periodStart, periodEnd } = opts;
+/**
+ * Returns all billable orders that are NOT yet linked to any invoice
+ * for the given recipient type.
+ */
+export const fetchUnbilledOrders = async (recipientType: "vendeur" | "livreur") => {
+  // Pull all already-invoiced order ids for that recipient type
+  const { data: linked, error: e0 } = await db
+    .from("invoice_items")
+    .select("order_id, invoices!inner(recipient_type)")
+    .eq("invoices.recipient_type", recipientType);
+  if (e0) throw e0;
+  const billedIds = new Set<number>((linked ?? []).map((r: any) => r.order_id).filter(Boolean));
 
-  // 1. Pull orders updated/delivered in the period
   let q = supabase
     .from("orders")
     .select("id, tracking_number, vendeur_id, assigned_livreur_id, customer_city, product_name, order_value, status, updated_at")
-    .gte("updated_at", `${periodStart}T00:00:00Z`)
-    .lt("updated_at", `${periodEnd}T23:59:59Z`)
-    .in("status", [...DELIVERED, ...REFUSED, ...CANCELLED]);
-
-  if (recipientType === "vendeur" && targetId) q = q.eq("vendeur_id", targetId);
-  if (recipientType === "livreur" && targetId) q = q.eq("assigned_livreur_id", targetId);
-
+    .in("status", BILLABLE);
   const { data: orders, error } = await q;
   if (error) throw error;
-  if (!orders || orders.length === 0) return { created: 0, invoices: [] };
 
-  // 2. Group by recipient
-  const groups = new Map<string, typeof orders>();
+  const recipientKey = recipientType === "vendeur" ? "vendeur_id" : "assigned_livreur_id";
+  return (orders ?? []).filter((o: any) => !billedIds.has(o.id) && o[recipientKey]);
+};
+
+/** Counts unbilled orders grouped by recipient. */
+export const fetchUnbilledCounts = async (recipientType: "vendeur" | "livreur") => {
+  const orders = await fetchUnbilledOrders(recipientType);
+  const counts = new Map<string, number>();
+  const key = recipientType === "vendeur" ? "vendeur_id" : "assigned_livreur_id";
+  for (const o of orders as any[]) {
+    counts.set(o[key], (counts.get(o[key]) ?? 0) + 1);
+  }
+  return { counts, total: orders.length };
+};
+
+export const generateInvoices = async (opts: GenerateOptions) => {
+  const { recipientType, targetId } = opts;
+
+  let orders = await fetchUnbilledOrders(recipientType);
+  if (orders.length === 0) return { created: 0, invoices: [] };
+
+  const recipientKey = recipientType === "vendeur" ? "vendeur_id" : "assigned_livreur_id";
+  if (targetId) orders = orders.filter((o: any) => o[recipientKey] === targetId);
+  if (orders.length === 0) return { created: 0, invoices: [] };
+
+  // Group by recipient
+  const groups = new Map<string, any[]>();
   for (const o of orders) {
-    const key = recipientType === "vendeur" ? o.vendeur_id : o.assigned_livreur_id;
-    if (!key) continue;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(o);
+    const k = (o as any)[recipientKey];
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(o);
   }
 
   const { packs, links } = await fetchAllPacks();
   const created: any[] = [];
 
   for (const [recipientId, recipientOrders] of groups) {
-    // Build items
-    const items = recipientOrders.map((o) => {
+    const items = recipientOrders.map((o: any) => {
       const price = resolvePrice(packs, links, {
         pickupCity: null,
         destCity: o.customer_city,
@@ -75,6 +94,7 @@ export const generateInvoices = async (opts: GenerateOptions) => {
         order_value: isDelivered ? Number(o.order_value || 0) : 0,
         fee_amount: fee,
         fee_type: feeType,
+        _updated_at: o.updated_at,
       };
     });
 
@@ -87,12 +107,16 @@ export const generateInvoices = async (opts: GenerateOptions) => {
         ? total_delivered - delivery_fees - total_refused_fees - total_annule_fees
         : delivery_fees + total_refused_fees + total_annule_fees;
 
-    const invoicePayload: any = {
+    const dates = items.map((i) => i._updated_at).filter(Boolean).sort();
+    const period_start = (dates[0] ?? new Date().toISOString()).slice(0, 10);
+    const period_end = (dates[dates.length - 1] ?? new Date().toISOString()).slice(0, 10);
+
+    const { data: inv, error: e1 } = await db.from("invoices").insert({
       recipient_type: recipientType,
       vendeur_id: recipientType === "vendeur" ? recipientId : null,
       livreur_id: recipientType === "livreur" ? recipientId : null,
-      period_start: periodStart,
-      period_end: periodEnd,
+      period_start,
+      period_end,
       total_delivered_amount: total_delivered,
       total_refused_fees,
       total_annule_fees,
@@ -100,12 +124,10 @@ export const generateInvoices = async (opts: GenerateOptions) => {
       packaging_fees: 0,
       net_amount,
       status: "draft",
-    };
-
-    const { data: inv, error: e1 } = await db.from("invoices").insert(invoicePayload).select("id").single();
+    }).select("id").single();
     if (e1) throw e1;
 
-    const itemsRows = items.map((i) => ({ ...i, invoice_id: inv.id }));
+    const itemsRows = items.map(({ _updated_at, ...i }) => ({ ...i, invoice_id: inv.id }));
     const { error: e2 } = await db.from("invoice_items").insert(itemsRows);
     if (e2) throw e2;
 
