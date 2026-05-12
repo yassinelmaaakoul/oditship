@@ -148,28 +148,40 @@ export type Database = {
       }
       invoice_items: {
         Row: {
+          customer_city: string | null
           fee_amount: number
           fee_type: string | null
           id: number
           invoice_id: number
           order_id: number | null
           order_value: number
+          product_name: string | null
+          status_snapshot: string | null
+          tracking_number: string | null
         }
         Insert: {
+          customer_city?: string | null
           fee_amount?: number
           fee_type?: string | null
           id?: number
           invoice_id: number
           order_id?: number | null
           order_value?: number
+          product_name?: string | null
+          status_snapshot?: string | null
+          tracking_number?: string | null
         }
         Update: {
+          customer_city?: string | null
           fee_amount?: number
           fee_type?: string | null
           id?: number
           invoice_id?: number
           order_id?: number | null
           order_value?: number
+          product_name?: string | null
+          status_snapshot?: string | null
+          tracking_number?: string | null
         }
         Relationships: [
           {
@@ -188,54 +200,96 @@ export type Database = {
           },
         ]
       }
+      invoice_schedules: {
+        Row: {
+          enabled: boolean
+          frequency_days: number
+          id: number
+          last_run_at: string | null
+          next_run_at: string | null
+          recipient_type: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          frequency_days?: number
+          id?: number
+          last_run_at?: string | null
+          next_run_at?: string | null
+          recipient_type: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          frequency_days?: number
+          id?: number
+          last_run_at?: string | null
+          next_run_at?: string | null
+          recipient_type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           created_at: string
           created_by: string | null
           delivery_fees: number
           id: number
+          livreur_id: string | null
           net_amount: number
+          notes: string | null
           packaging_fees: number
           paid_at: string | null
           period_end: string
           period_start: string
+          recipient_type: string
           status: string
           total_annule_fees: number
           total_delivered_amount: number
           total_refused_fees: number
-          vendeur_id: string
+          vendeur_id: string | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           delivery_fees?: number
           id?: number
+          livreur_id?: string | null
           net_amount?: number
+          notes?: string | null
           packaging_fees?: number
           paid_at?: string | null
           period_end: string
           period_start: string
+          recipient_type?: string
           status?: string
           total_annule_fees?: number
           total_delivered_amount?: number
           total_refused_fees?: number
-          vendeur_id: string
+          vendeur_id?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
           delivery_fees?: number
           id?: number
+          livreur_id?: string | null
           net_amount?: number
+          notes?: string | null
           packaging_fees?: number
           paid_at?: string | null
           period_end?: string
           period_start?: string
+          recipient_type?: string
           status?: string
           total_annule_fees?: number
           total_delivered_amount?: number
           total_refused_fees?: number
-          vendeur_id?: string
+          vendeur_id?: string | null
         }
         Relationships: [
           {

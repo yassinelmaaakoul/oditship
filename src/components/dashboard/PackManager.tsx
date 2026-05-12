@@ -191,33 +191,62 @@ const LinkCitiesDialog = ({ pack, onClose, cities, pickupCities, showPickupDimen
   const [pickup, setPickup] = useState<string>("*");
   const [allDest, setAllDest] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [existingSearch, setExistingSearch] = useState("");
+  const [destSearch, setDestSearch] = useState("");
 
   useEffect(() => {
     if (!pack) return;
     setPickup("*");
     setAllDest(false);
     setSelected(new Set());
+    setExistingSearch("");
+    setDestSearch("");
   }, [pack]);
 
   // Cities already linked to OTHER packs (same scope/owner) for current pickup => excluded
-  const takenCities = useMemo(() => {
+  const takenByOthers = useMemo(() => {
     const set = new Set<string>();
     for (const l of otherPackLinks) {
       if (l.pickup_city === pickup || l.pickup_city === "*" || pickup === "*") set.add(l.destination_city);
     }
     return set;
   }, [otherPackLinks, pickup]);
-  const availableCities = useMemo(() => cities.filter((c) => !takenCities.has(c.name)), [cities, takenCities]);
 
-  const toggleAll = (v: boolean) => {
-    setAllDest(v);
-    if (v) setSelected(new Set(availableCities.map((c) => c.name)));
-    else setSelected(new Set());
-  };
+  // Cities already linked to THIS pack for current pickup => excluded too
+  const alreadyLinkedHere = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of existingLinks) {
+      if (l.pickup_city === pickup || l.pickup_city === "*" || pickup === "*") set.add(l.destination_city);
+    }
+    return set;
+  }, [existingLinks, pickup]);
+
+  const availableCities = useMemo(
+    () => cities.filter((c) => !takenByOthers.has(c.name) && !alreadyLinkedHere.has(c.name)),
+    [cities, takenByOthers, alreadyLinkedHere],
+  );
+
+  const filteredAvailable = useMemo(
+    () => availableCities.filter((c) => c.name.toLowerCase().includes(destSearch.toLowerCase())),
+    [availableCities, destSearch],
+  );
+
+  const filteredExisting = useMemo(
+    () => existingLinks.filter((l) => {
+      const label = l.destination_city === "*" ? "toutes les villes" : l.destination_city.toLowerCase();
+      return label.includes(existingSearch.toLowerCase());
+    }),
+    [existingLinks, existingSearch],
+  );
+
+  // When "all cities" is checked, mark every available city as selected (don't hide the list)
+  useEffect(() => {
+    if (allDest) setSelected(new Set(availableCities.map((c) => c.name)));
+  }, [allDest, availableCities]);
 
   const apply = async () => {
     if (!pack) return;
-    const dests = allDest ? ["*"] : Array.from(selected);
+    const dests = Array.from(selected);
     if (dests.length === 0) return toast.error("Sélectionnez au moins une ville");
     const rows = dests.map((d) => ({ pack_id: pack.id, pickup_city: pickup, destination_city: d }));
     const { error } = await db.from("pricing_pack_links").upsert(rows, { onConflict: "pack_id,pickup_city,destination_city" });
@@ -240,9 +269,17 @@ const LinkCitiesDialog = ({ pack, onClose, cities, pickupCities, showPickupDimen
         <div className="space-y-4">
           {existingLinks.length > 0 && (
             <div>
-              <Label className="text-xs">Liens existants</Label>
-              <div className="flex flex-wrap gap-1 mt-1 max-h-32 overflow-y-auto">
-                {existingLinks.map((l) => (
+              <Label className="text-xs">Liens existants ({existingLinks.length})</Label>
+              <Input
+                placeholder="Rechercher dans les liens existants..."
+                value={existingSearch}
+                onChange={(e) => setExistingSearch(e.target.value)}
+                className="h-8 mt-1 mb-2"
+              />
+              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                {filteredExisting.length === 0 ? (
+                  <span className="text-xs text-muted-foreground italic">Aucun résultat</span>
+                ) : filteredExisting.map((l) => (
                   <Badge key={l.id} variant="secondary" className="text-xs gap-1">
                     {showPickupDimension && `${l.pickup_city === "*" ? "Toutes" : l.pickup_city} → `}
                     {l.destination_city === "*" ? "Toutes les villes" : l.destination_city}
@@ -267,33 +304,44 @@ const LinkCitiesDialog = ({ pack, onClose, cities, pickupCities, showPickupDimen
           )}
 
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-2">
               <Label>Villes de destination</Label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={allDest} onCheckedChange={(v) => toggleAll(!!v)} />
+              <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+                <Checkbox checked={allDest} onCheckedChange={(v) => setAllDest(!!v)} />
                 Toutes les villes
               </label>
             </div>
-            {!allDest && (
-              <div className="border rounded-md p-2 max-h-64 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-1">
-                {availableCities.map((c) => {
-                  const checked = selected.has(c.name);
-                  return (
-                    <label key={c.id} className="flex items-center gap-2 text-sm px-2 py-1 hover:bg-accent rounded cursor-pointer">
-                      <Checkbox checked={checked} onCheckedChange={(v) => {
-                        const n = new Set(selected);
-                        if (v) n.add(c.name); else n.delete(c.name);
-                        setSelected(n);
-                      }} />
-                      <span className="truncate">{c.name}</span>
-                    </label>
-                  );
-                })}
-                {availableCities.length === 0 && <div className="text-sm text-muted-foreground p-2 col-span-full">Toutes les villes sont déjà liées à d'autres packs.</div>}
-              </div>
-            )}
-            {takenCities.size > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">{takenCities.size} ville(s) masquée(s) car déjà liée(s) à un autre pack.</p>
+            <Input
+              placeholder="Rechercher une ville..."
+              value={destSearch}
+              onChange={(e) => setDestSearch(e.target.value)}
+              className="h-8 mb-2"
+            />
+            <div className="border rounded-md p-2 max-h-64 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-1">
+              {filteredAvailable.map((c) => {
+                const checked = selected.has(c.name);
+                return (
+                  <label key={c.id} className="flex items-center gap-2 text-sm px-2 py-1 hover:bg-accent rounded cursor-pointer">
+                    <Checkbox checked={checked} onCheckedChange={(v) => {
+                      const n = new Set(selected);
+                      if (v) n.add(c.name); else n.delete(c.name);
+                      setSelected(n);
+                      if (!v) setAllDest(false);
+                    }} />
+                    <span className="truncate">{c.name}</span>
+                  </label>
+                );
+              })}
+              {filteredAvailable.length === 0 && (
+                <div className="text-sm text-muted-foreground p-2 col-span-full">
+                  {availableCities.length === 0 ? "Toutes les villes sont déjà liées." : "Aucun résultat."}
+                </div>
+              )}
+            </div>
+            {(takenByOthers.size > 0 || alreadyLinkedHere.size > 0) && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {alreadyLinkedHere.size} déjà liée(s) à ce pack · {takenByOthers.size} liée(s) à un autre pack.
+              </p>
             )}
           </div>
         </div>

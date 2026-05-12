@@ -32,6 +32,7 @@ import AdminUtilisateurs from "./pages/admin/AdminUtilisateurs";
 import AdminParametres from "./pages/admin/AdminParametres";
 import AdminLivreurWorkflows from "./pages/admin/AdminLivreurWorkflows";
 import AdminLivreursPage from "./pages/admin/AdminLivreursPage";
+import AdminFacturation from "./pages/admin/AdminFacturation";
 
 import LivreurDashboard from "./pages/livreur/LivreurDashboard";
 import LivreurColis from "./pages/livreur/LivreurColis";
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="colis" element={<AdminColis />} />
               <Route path="utilisateurs" element={<AdminUtilisateurs />} />
               <Route path="livreurs" element={<AdminLivreursPage />} />
+              <Route path="facturation" element={<AdminFacturation />} />
               <Route path="parametres" element={<AdminParametres />} />
             </Route>
             <Route path="/admin/livreurs/:livreurId/workflows" element={<ProtectedRoute allowedRoles={["administrateur"]}><AdminLivreurWorkflows /></ProtectedRoute>} />
