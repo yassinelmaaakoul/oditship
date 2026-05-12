@@ -150,3 +150,35 @@ export const generateInvoices = async (opts: GenerateOptions) => {
 
   return { created: created.length, invoices: created };
 };
+
+/**
+ * Mark an invoice as paid (or unpaid) and append a chronologie entry on every
+ * order in that invoice. Optionally stores a payment reference + proof URL.
+ */
+export const setInvoicePaid = async (
+  invoiceId: number,
+  paid: boolean,
+  extra?: { reference?: string | null; proofUrl?: string | null },
+) => {
+  const patch: any = {
+    status: paid ? "paid" : "draft",
+    paid_at: paid ? new Date().toISOString() : null,
+  };
+  if (extra?.reference !== undefined) patch.payment_reference = extra.reference;
+  if (extra?.proofUrl !== undefined) patch.payment_proof_url = extra.proofUrl;
+  const { data: inv, error } = await db.from("invoices").update(patch).eq("id", invoiceId).select("recipient_type").single();
+  if (error) throw error;
+
+  const { data: its } = await db.from("invoice_items").select("order_id, status_snapshot").eq("invoice_id", invoiceId);
+  const rows = ((its ?? []) as any[])
+    .filter((r) => r.order_id)
+    .map((r) => ({
+      order_id: r.order_id,
+      old_status: r.status_snapshot,
+      new_status: r.status_snapshot,
+      notes: `Facture #${invoiceId} ${inv?.recipient_type === "vendeur" ? "vendeur" : "livreur"} ${paid ? "payée" : "marquée non payée"}`,
+      actor_label: "Facturation",
+    }));
+  if (rows.length) await db.from("order_status_history").insert(rows);
+  return inv;
+};
