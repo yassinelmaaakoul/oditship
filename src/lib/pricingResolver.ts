@@ -29,7 +29,10 @@ export interface PricingPackLink {
 }
 
 const matches = (link: PricingPackLink, pickupCity: string | null, destCity: string) => {
-  const pickupOk = link.pickup_city === "*" || (pickupCity && link.pickup_city === pickupCity);
+  // When `pickupCity` is null (e.g. invoicing context where no specific pickup is known),
+  // treat it as a wildcard so links bound to specific pickup cities still match.
+  const pickupOk =
+    link.pickup_city === "*" || pickupCity == null || link.pickup_city === pickupCity;
   const destOk = link.destination_city === "*" || link.destination_city === destCity;
   return pickupOk && destOk;
 };
