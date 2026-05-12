@@ -250,6 +250,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           delivery_fees: number
+          extra_amount: number
+          extra_description: string | null
           id: number
           livreur_id: string | null
           net_amount: number
@@ -271,6 +273,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           delivery_fees?: number
+          extra_amount?: number
+          extra_description?: string | null
           id?: number
           livreur_id?: string | null
           net_amount?: number
@@ -292,6 +296,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           delivery_fees?: number
+          extra_amount?: number
+          extra_description?: string | null
           id?: number
           livreur_id?: string | null
           net_amount?: number
