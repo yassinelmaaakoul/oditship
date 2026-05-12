@@ -76,11 +76,13 @@ export const generateInvoices = async (opts: GenerateOptions) => {
 
   for (const [recipientId, recipientOrders] of groups) {
     const items = recipientOrders.map((o: any) => {
+      // Vendor billing → only consider vendor & global packs (never livreur).
+      // Livreur billing → only consider livreur & global packs (never vendor).
       const price = resolvePrice(packs, links, {
         pickupCity: null,
         destCity: o.customer_city,
-        vendeurId: recipientType === "vendeur" ? recipientId : o.vendeur_id,
-        livreurId: recipientType === "livreur" ? recipientId : o.assigned_livreur_id,
+        vendeurId: recipientType === "vendeur" ? recipientId : null,
+        livreurId: recipientType === "livreur" ? recipientId : null,
       });
       const isDelivered = isIn(DELIVERED, o.status);
       const isRefused = isIn(REFUSED, o.status);
