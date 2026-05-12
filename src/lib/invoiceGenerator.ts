@@ -74,6 +74,24 @@ export const generateInvoices = async (opts: GenerateOptions) => {
   const { packs, links } = await fetchAllPacks();
   const created: any[] = [];
 
+  // Livreur invoices require at least one ACTIVE livreur-scoped pack owned by them.
+  if (recipientType === "livreur") {
+    for (const recipientId of Array.from(groups.keys())) {
+      const own = packs.filter(
+        (p: any) => p.scope === "livreur" && p.owner_id === recipientId,
+      );
+      const activeCount = own.filter((p: any) => (p.status ?? "active") === "active").length;
+      if (activeCount === 0) {
+        const draftCount = own.filter((p: any) => p.status === "draft").length;
+        const msg =
+          draftCount > 0
+            ? `Le livreur a ${draftCount} pack(s) en brouillon. Validez-les avant de facturer.`
+            : "Le livreur n'a aucun pack tarifaire. Créez et validez un pack avant de facturer.";
+        throw new Error(msg);
+      }
+    }
+  }
+
   for (const [recipientId, recipientOrders] of groups) {
     const items = recipientOrders.map((o: any) => {
       // Vendor billing → only consider vendor & global packs (never livreur).
