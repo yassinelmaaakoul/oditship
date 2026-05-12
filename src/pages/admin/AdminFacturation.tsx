@@ -30,8 +30,6 @@ interface Invoice {
   status: string;
   created_at: string;
   paid_at: string | null;
-  extra_amount: number;
-  extra_description: string | null;
 }
 interface Item {
   id: number;
@@ -44,6 +42,7 @@ interface Item {
   order_value: number;
   fee_amount: number;
   fee_type: string | null;
+  description: string | null;
 }
 interface Profile { id: string; username: string; full_name: string | null; }
 interface Schedule {
@@ -63,7 +62,7 @@ const DAYS = [
   { v: 4, l: "Jeu" }, { v: 5, l: "Ven" }, { v: 6, l: "Sam" }, { v: 0, l: "Dim" },
 ];
 
-interface InvoiceSummary { count: number; cod: number; fees: number; }
+interface InvoiceSummary { count: number; cod: number; fees: number; extras: number; extrasCount: number; }
 
 const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
