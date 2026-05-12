@@ -463,8 +463,27 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
             )}
           </DialogTitle>
         </DialogHeader>
-        <div className="text-sm text-muted-foreground mb-2">
-          {summary?.count ?? items.length} commande(s) · COD : <strong>{(summary?.cod ?? 0).toFixed(2)}</strong> · Reste : <strong>{Number(invoice?.net_amount || 0).toFixed(2)}</strong>
+        <div className="grid sm:grid-cols-4 gap-2 text-sm mb-3">
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Commandes</div><div className="font-semibold">{summary?.count ?? items.length}</div></div>
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">COD</div><div className="font-semibold font-mono">{(summary?.cod ?? totalCod).toFixed(2)}</div></div>
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Tarif</div><div className="font-semibold font-mono">{totalFees.toFixed(2)}</div></div>
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Reste</div><div className="font-semibold font-mono">{currentNet.toFixed(2)}</div></div>
+        </div>
+        <div className="rounded-md border p-3 mb-3 space-y-2 bg-muted/30">
+          <div className="text-sm font-medium">Autre tarif</div>
+          <div className="grid sm:grid-cols-3 gap-2">
+            <div>
+              <Label className="text-xs">Montant</Label>
+              <Input type="number" step="0.01" value={extraAmount} onChange={(e) => setExtraAmount(Number(e.target.value))} className="h-8" />
+            </div>
+            <div className="sm:col-span-2">
+              <Label className="text-xs">Description</Label>
+              <Input value={extraDesc} onChange={(e) => setExtraDesc(e.target.value)} placeholder="Ex. emballage spécial, frais de retour…" className="h-8" />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={saveExtra}>Enregistrer</Button>
+          </div>
         </div>
         <Table>
           <TableHeader>
