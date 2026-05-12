@@ -126,12 +126,12 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
     finally { setBusy(false); }
   };
 
-  const togglePaid = async (inv: Invoice) => {
-    const newStatus = inv.status === "paid" ? "draft" : "paid";
-    const { error } = await db.from("invoices").update({ status: newStatus, paid_at: newStatus === "paid" ? new Date().toISOString() : null }).eq("id", inv.id);
-    if (error) return toast.error(error.message);
-    toast.success(newStatus === "paid" ? "Marquée payée" : "Marquée non payée");
-    load();
+  const markUnpaid = async (inv: Invoice) => {
+    try {
+      await setInvoicePaid(inv.id, false);
+      toast.success("Marquée non payée");
+      load();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
   };
 
   const deleteInvoice = async (id: number) => {
