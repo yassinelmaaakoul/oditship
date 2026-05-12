@@ -62,8 +62,11 @@ const DAYS = [
   { v: 4, l: "Jeu" }, { v: 5, l: "Ven" }, { v: 6, l: "Sam" }, { v: 0, l: "Dim" },
 ];
 
+interface InvoiceSummary { count: number; cod: number; fees: number; }
+
 const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [summary, setSummary] = useState<Record<number, InvoiceSummary>>({});
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
@@ -72,6 +75,7 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   const [genTarget, setGenTarget] = useState<string>("all");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Invoice | null>(null);
+  const [payOpen, setPayOpen] = useState<Invoice | null>(null);
 
   const load = async () => {
     const [inv, p, s, c] = await Promise.all([
@@ -80,11 +84,26 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
       db.from("invoice_schedules").select("*").eq("recipient_type", type).maybeSingle(),
       fetchUnbilledCounts(type),
     ]);
-    setInvoices((inv.data ?? []) as Invoice[]);
+    const list = (inv.data ?? []) as Invoice[];
+    setInvoices(list);
     setProfiles((p.data ?? []) as Profile[]);
     setSchedule((s.data ?? null) as Schedule | null);
     setCounts(c.counts);
     setTotalUnbilled(c.total);
+
+    if (list.length) {
+      const ids = list.map((x) => x.id);
+      const { data: its } = await db.from("invoice_items").select("invoice_id, order_value, fee_amount").in("invoice_id", ids);
+      const map: Record<number, InvoiceSummary> = {};
+      for (const r of (its ?? []) as any[]) {
+        const cur = map[r.invoice_id] ?? { count: 0, cod: 0, fees: 0 };
+        cur.count += 1;
+        cur.cod += Number(r.order_value || 0);
+        cur.fees += Number(r.fee_amount || 0);
+        map[r.invoice_id] = cur;
+      }
+      setSummary(map);
+    } else setSummary({});
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [type]);
 
