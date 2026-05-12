@@ -120,10 +120,12 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
     load();
   };
 
-  const viewProof = async (path: string) => {
-    const { data, error } = await supabase.storage.from("payment-proofs").createSignedUrl(path, 60 * 5);
-    if (error || !data?.signedUrl) return toast.error("Preuve introuvable");
-    window.open(data.signedUrl, "_blank");
+  const bulkExport = async (fmt: "pdf" | "csv") => {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    const list = invoices.filter((i) => ids.includes(i.id));
+    for (const inv of list) await exportInvoice(inv, fmt);
+    toast.success(`${list.length} facture(s) exportée(s) en ${fmt.toUpperCase()}`);
   };
 
   const load = async () => {
