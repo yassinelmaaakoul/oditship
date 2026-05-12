@@ -9,10 +9,12 @@ export interface GenerateOptions {
   targetId?: string;
 }
 
-const DELIVERED = ["Livré", "Delivered"];
-const REFUSED = ["Refusé", "Refused"];
-const CANCELLED = ["Annulé", "Cancelled", "Annule"];
+const DELIVERED = ["livré", "delivered"];
+const REFUSED = ["refusé", "refused"];
+const CANCELLED = ["annulé", "cancelled", "annule"];
 const BILLABLE = [...DELIVERED, ...REFUSED, ...CANCELLED];
+const norm = (s: string) => (s || "").toLowerCase().trim();
+const isIn = (arr: string[], s: string) => arr.includes(norm(s));
 
 const sum = (arr: number[]) => arr.reduce((a, b) => a + (Number(b) || 0), 0);
 
@@ -32,7 +34,7 @@ export const fetchUnbilledOrders = async (recipientType: "vendeur" | "livreur") 
   let q = supabase
     .from("orders")
     .select("id, tracking_number, vendeur_id, assigned_livreur_id, customer_city, product_name, order_value, status, updated_at")
-    .in("status", BILLABLE);
+    .or(BILLABLE.map((s) => `status.ilike.${s}`).join(","));
   const { data: orders, error } = await q;
   if (error) throw error;
 
@@ -80,9 +82,9 @@ export const generateInvoices = async (opts: GenerateOptions) => {
         vendeurId: recipientType === "vendeur" ? recipientId : o.vendeur_id,
         livreurId: recipientType === "livreur" ? recipientId : o.assigned_livreur_id,
       });
-      const isDelivered = DELIVERED.includes(o.status);
-      const isRefused = REFUSED.includes(o.status);
-      const isCancelled = CANCELLED.includes(o.status);
+      const isDelivered = isIn(DELIVERED, o.status);
+      const isRefused = isIn(REFUSED, o.status);
+      const isCancelled = isIn(CANCELLED, o.status);
       const fee = isDelivered ? price.delivery_fee : isRefused ? price.refusal_fee : isCancelled ? price.annulation_fee : 0;
       const feeType = isDelivered ? "livraison" : isRefused ? "refus" : "annulation";
       return {
