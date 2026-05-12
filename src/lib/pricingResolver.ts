@@ -19,6 +19,7 @@ export interface PricingPack {
   delivery_delay_hours: number;
   scope: "global" | "vendeur" | "livreur";
   owner_id: string | null;
+  status?: "draft" | "active";
 }
 
 export interface PricingPackLink {
@@ -46,7 +47,10 @@ const pickFromPacks = (
   ownerId?: string | null,
 ): PricingPack | null => {
   const candidatePacks = packs.filter(
-    (p) => p.scope === scope && (scope === "global" || p.owner_id === ownerId),
+    (p) =>
+      p.scope === scope &&
+      (scope === "global" || p.owner_id === ownerId) &&
+      (p.status ?? "active") === "active",
   );
   // Prefer the most specific link (both non-wildcard)
   let best: { pack: PricingPack; specificity: number } | null = null;
