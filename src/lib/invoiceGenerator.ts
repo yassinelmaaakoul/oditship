@@ -172,16 +172,19 @@ export const setInvoicePaid = async (
   const { data: inv, error } = await db.from("invoices").update(patch).eq("id", invoiceId).select("recipient_type").single();
   if (error) throw error;
 
-  const { data: its } = await db.from("invoice_items").select("order_id, status_snapshot").eq("invoice_id", invoiceId);
-  const rows = ((its ?? []) as any[])
-    .filter((r) => r.order_id)
-    .map((r) => ({
-      order_id: r.order_id,
-      old_status: r.status_snapshot,
-      new_status: r.status_snapshot,
-      notes: `Facture #${invoiceId} ${inv?.recipient_type === "vendeur" ? "vendeur" : "livreur"} ${paid ? "payée" : "marquée non payée"}`,
-      actor_label: "Facturation",
-    }));
-  if (rows.length) await db.from("order_status_history").insert(rows);
+  // Only vendor invoice activity is mirrored to the order chronology.
+  if (inv?.recipient_type === "vendeur") {
+    const { data: its } = await db.from("invoice_items").select("order_id, status_snapshot").eq("invoice_id", invoiceId);
+    const rows = ((its ?? []) as any[])
+      .filter((r) => r.order_id)
+      .map((r) => ({
+        order_id: r.order_id,
+        old_status: r.status_snapshot,
+        new_status: r.status_snapshot,
+        notes: `Facture #${invoiceId} vendeur ${paid ? "payée" : "marquée non payée"}`,
+        actor_label: "Facturation",
+      }));
+    if (rows.length) await db.from("order_status_history").insert(rows);
+  }
   return inv;
 };
