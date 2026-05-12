@@ -35,6 +35,9 @@ const AdminLivreurs = () => {
   const [show, setShow] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [tarifsTarget, setTarifsTarget] = useState<Livreur | null>(null);
+  const [editTarget, setEditTarget] = useState<Livreur | null>(null);
+  const [editForm, setEditForm] = useState<{ full_name: string; phone: string; email: string; password: string }>({ full_name: "", phone: "", email: "", password: "" });
+  const [editBusy, setEditBusy] = useState(false);
   const [hubCities, setHubCities] = useState<Array<{ hub_id: number; city_name: string }>>([]);
 
   const load = async () => {
