@@ -36,6 +36,7 @@ import AdminFacturation from "./pages/admin/AdminFacturation";
 
 import LivreurDashboard from "./pages/livreur/LivreurDashboard";
 import LivreurColis from "./pages/livreur/LivreurColis";
+import LivreurTarifs from "./pages/livreur/LivreurTarifs";
 import LivreurDocApi from "./pages/livreur/LivreurDocApi";
 
 import RamassoireDashboard, { RamassoireList, ListeRamassage } from "./pages/ramassoire/RamassoireDashboard";
@@ -93,6 +94,7 @@ const App = () => (
             <Route path="/dashboard/livreur" element={<ProtectedRoute allowedRoles={["livreur","administrateur"]}><LivreurDashboard /></ProtectedRoute>}>
               <Route index element={<Navigate to="colis" replace />} />
               <Route path="colis" element={<LivreurColis />} />
+              <Route path="tarifs" element={<LivreurTarifs />} />
               <Route path="doc-api" element={<LivreurDocApi />} />
             </Route>
 

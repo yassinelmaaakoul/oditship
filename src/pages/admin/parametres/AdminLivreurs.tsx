@@ -8,12 +8,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown, Eye, EyeOff, RefreshCw, Zap, Wallet } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, RefreshCw, Zap, Wallet, LogIn, UserX, UserCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PackManager from "@/components/dashboard/PackManager";
 
-interface Livreur { id: string; username: string; full_name: string | null; api_enabled: boolean; api_token: string | null; }
+interface Livreur { id: string; username: string; full_name: string | null; api_enabled: boolean; api_token: string | null; is_active?: boolean; }
 interface Hub { id: number; name: string; }
 interface HubLivreur { hub_id: number; livreur_id: string; }
 
@@ -26,6 +27,7 @@ const generateToken = () => {
 };
 
 const AdminLivreurs = () => {
+  const { user } = useAuth();
   const [livreurs, setLivreurs] = useState<Livreur[]>([]);
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [hubLivreurs, setHubLivreurs] = useState<HubLivreur[]>([]);
@@ -36,7 +38,7 @@ const AdminLivreurs = () => {
 
   const load = async () => {
     const [p, h, hl, hc] = await Promise.all([
-      db.from("profiles").select("id, username, full_name, api_enabled, api_token").eq("role", "livreur").order("username"),
+      db.from("profiles").select("id, username, full_name, api_enabled, api_token, is_active").eq("role", "livreur").order("username"),
       supabase.from("hubs").select("id, name").order("name"),
       supabase.from("hub_livreur").select("hub_id, livreur_id"),
       supabase.from("hub_cities").select("hub_id, city_name"),
@@ -83,6 +85,39 @@ const AdminLivreurs = () => {
     else { toast.success("Token regenerated"); load(); }
   };
 
+  const toggleActive = async (l: Livreur) => {
+    if (l.id === user?.id) return toast.error("Vous ne pouvez pas désactiver votre propre compte");
+    const { error } = await supabase.from("profiles").update({ is_active: !l.is_active }).eq("id", l.id);
+    if (error) toast.error(error.message);
+    else { toast.success(l.is_active ? "Désactivé" : "Activé"); load(); }
+  };
+
+  const loginAs = async (l: Livreur) => {
+    if (l.id === user?.id) return toast.error("Vous êtes déjà connecté avec ce compte");
+    try {
+      const { data, error } = await supabase.functions.invoke("get-impersonation-token", { body: { targetUserId: l.id } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const at = (data as any)?.access_token, rt = (data as any)?.refresh_token;
+      if (!at || !rt) throw new Error("Jeton introuvable");
+      const w = window.open(`/impersonate?access_token=${encodeURIComponent(at)}&refresh_token=${encodeURIComponent(rt)}`, "_blank", "noopener,noreferrer");
+      if (!w) toast.error("Veuillez autoriser les popups");
+      else toast.success(`Connecté en tant que ${l.username}`);
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+  };
+
+  const deleteLivreur = async (l: Livreur) => {
+    if (l.id === user?.id) return;
+    if (!confirm(`Supprimer le livreur ${l.username} ?`)) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-user", { body: { targetUserId: l.id } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Livreur supprimé");
+      load();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+  };
+
   const masked = (t: string | null) => t ? `${t.slice(0, 6)}${"•".repeat(20)}${t.slice(-4)}` : "—";
 
   return (
@@ -95,11 +130,12 @@ const AdminLivreurs = () => {
               <TableHead>Hubs assignés</TableHead>
               <TableHead>API</TableHead>
               <TableHead>Workflows</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {livreurs.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No drivers</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No drivers</TableCell></TableRow>
             ) : livreurs.map((l) => {
               const assigned = hubsOf(l.id);
               return (
@@ -148,6 +184,19 @@ const AdminLivreurs = () => {
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => setTarifsTarget(l)}>
                         <Wallet className="h-4 w-4 mr-1" /> Tarifs
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => loginAs(l)} disabled={l.id === user?.id} title="Se connecter en tant que">
+                        <LogIn className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => toggleActive(l)} disabled={l.id === user?.id} title={l.is_active ? "Désactiver" : "Activer"}>
+                        {l.is_active ? <UserX className="h-4 w-4 text-destructive" /> : <UserCheck className="h-4 w-4 text-success" />}
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => deleteLivreur(l)} disabled={l.id === user?.id} title="Supprimer">
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </TableCell>

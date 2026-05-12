@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Receipt, Timer, Plus, Pencil, Trash2, FileText, FileSpreadsheet } from "lucide-react";
+import { Receipt, Timer, Plus, Pencil, Trash2, FileText, FileSpreadsheet, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { generateInvoices, fetchUnbilledCounts, setInvoicePaid, recomputeInvoiceTotals } from "@/lib/invoiceGenerator";
 import { exportInvoiceCsv, exportInvoicePdf } from "@/lib/invoiceExport";
@@ -30,6 +30,8 @@ interface Invoice {
   status: string;
   created_at: string;
   paid_at: string | null;
+  payment_reference: string | null;
+  payment_proof_url: string | null;
 }
 interface Item {
   id: number;
@@ -62,7 +64,7 @@ const DAYS = [
   { v: 4, l: "Jeu" }, { v: 5, l: "Ven" }, { v: 6, l: "Sam" }, { v: 0, l: "Dim" },
 ];
 
-interface InvoiceSummary { count: number; cod: number; fees: number; extras: number; extrasCount: number; }
+interface InvoiceSummary { count: number; cod: number; fees: number; extras: number; extrasCount: number; extraNames: string[]; }
 
 const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -76,6 +78,47 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Invoice | null>(null);
   const [payOpen, setPayOpen] = useState<Invoice | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  const toggleOne = (id: number) => {
+    const n = new Set(selected);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    setSelected(n);
+  };
+  const toggleAll = (ids: number[]) => {
+    const all = ids.every((i) => selected.has(i));
+    const n = new Set(selected);
+    if (all) ids.forEach((i) => n.delete(i)); else ids.forEach((i) => n.add(i));
+    setSelected(n);
+  };
+  const clearSelection = () => setSelected(new Set());
+
+  const bulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Supprimer ${selected.size} facture(s) ?`)) return;
+    const ids = Array.from(selected);
+    await db.from("invoice_items").delete().in("invoice_id", ids);
+    const { error } = await db.from("invoices").delete().in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(`${ids.length} facture(s) supprimée(s)`);
+    clearSelection();
+    load();
+  };
+
+  const bulkMarkUnpaid = async () => {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    for (const id of ids) await setInvoicePaid(id, false);
+    toast.success(`${ids.length} facture(s) marquée(s) non payée(s)`);
+    clearSelection();
+    load();
+  };
+
+  const viewProof = async (path: string) => {
+    const { data, error } = await supabase.storage.from("payment-proofs").createSignedUrl(path, 60 * 5);
+    if (error || !data?.signedUrl) return toast.error("Preuve introuvable");
+    window.open(data.signedUrl, "_blank");
+  };
 
   const load = async () => {
     const [inv, p, s, c] = await Promise.all([
@@ -93,13 +136,15 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
 
     if (list.length) {
       const ids = list.map((x) => x.id);
-      const { data: its } = await db.from("invoice_items").select("invoice_id, order_value, fee_amount, fee_type").in("invoice_id", ids);
+      const { data: its } = await db.from("invoice_items").select("invoice_id, order_value, fee_amount, fee_type, description, product_name").in("invoice_id", ids);
       const map: Record<number, InvoiceSummary> = {};
       for (const r of (its ?? []) as any[]) {
-        const cur = map[r.invoice_id] ?? { count: 0, cod: 0, fees: 0, extras: 0, extrasCount: 0 };
+        const cur = map[r.invoice_id] ?? { count: 0, cod: 0, fees: 0, extras: 0, extrasCount: 0, extraNames: [] };
         if (r.fee_type === "extra") {
           cur.extras += Number(r.fee_amount || 0);
           cur.extrasCount += 1;
+          const name = (r.description || r.product_name || "Autre tarif") as string;
+          cur.extraNames.push(name);
         } else {
           cur.count += 1;
           cur.cod += Number(r.order_value || 0);
@@ -260,10 +305,26 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
         </Card>
       </div>
 
+      {selected.size > 0 && (
+        <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 shadow-sm">
+          <span className="text-sm font-medium">{selected.size} sélectionnée{selected.size > 1 ? "s" : ""}</span>
+          <Button size="sm" variant="outline" onClick={bulkMarkUnpaid}>Marquer non payée</Button>
+          <Button size="sm" variant="destructive" onClick={bulkDelete}><Trash2 className="h-4 w-4 mr-1" />Supprimer</Button>
+          <Button size="sm" variant="ghost" onClick={clearSelection}>Annuler</Button>
+        </div>
+      )}
+
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={invoices.length > 0 && invoices.every((i) => selected.has(i.id))}
+                  onCheckedChange={() => toggleAll(invoices.map((i) => i.id))}
+                  aria-label="Tout sélectionner"
+                />
+              </TableHead>
               <TableHead className="w-20">Facture</TableHead>
               <TableHead>{type === "vendeur" ? "Vendeur" : "Livreur"}</TableHead>
               <TableHead>COD</TableHead>
@@ -278,11 +339,14 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
           </TableHeader>
           <TableBody>
             {invoices.length === 0 ? (
-              <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
+              <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
             ) : invoices.map((inv) => {
               const s = summary[inv.id];
               return (
-              <TableRow key={inv.id} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpen(inv)}>
+              <TableRow key={inv.id} data-state={selected.has(inv.id) ? "selected" : undefined} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpen(inv)}>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Checkbox checked={selected.has(inv.id)} onCheckedChange={() => toggleOne(inv.id)} aria-label={`Sélectionner facture ${inv.id}`} />
+                </TableCell>
                 <TableCell className="font-mono font-semibold">#{inv.id}</TableCell>
                 <TableCell className="font-medium">{profileName(type === "vendeur" ? inv.vendeur_id : inv.livreur_id)}</TableCell>
                 <TableCell className="font-mono">{(s?.cod ?? 0).toFixed(2)}</TableCell>
@@ -290,12 +354,23 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
                 <TableCell className="font-mono">{(s?.fees ?? 0).toFixed(2)}</TableCell>
                 <TableCell className="font-mono text-xs">
                   <div>{(s?.extras ?? 0).toFixed(2)}</div>
-                  {s && s.extrasCount > 0 && <div className="text-muted-foreground">{s.extrasCount} ligne(s)</div>}
+                  {s && s.extraNames.length > 0 && (
+                    <div className="text-[11px] text-muted-foreground font-sans truncate max-w-[200px]" title={s.extraNames.join(" · ")}>
+                      {s.extraNames.join(" · ")}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="font-mono font-semibold">{Number(inv.net_amount).toFixed(2)}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {inv.status === "paid" ? (
-                    <Badge variant="default" className="cursor-pointer" onClick={() => markUnpaid(inv)} title="Marquer comme non payée">Payée</Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="default" className="cursor-pointer" onClick={() => markUnpaid(inv)} title="Marquer comme non payée">Payée</Badge>
+                      {inv.payment_proof_url && (
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => viewProof(inv.payment_proof_url!)} title="Voir preuve de paiement">
+                          <ImageIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   ) : (
                     <Badge variant="secondary" className="cursor-pointer" onClick={() => setPayOpen(inv)} title="Enregistrer le paiement">Non payée</Badge>
                   )}
