@@ -791,6 +791,7 @@ export type Database = {
           owner_id: string | null
           refusal_fee: number
           scope: string
+          status: string
           updated_at: string
         }
         Insert: {
@@ -803,6 +804,7 @@ export type Database = {
           owner_id?: string | null
           refusal_fee?: number
           scope?: string
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -815,6 +817,7 @@ export type Database = {
           owner_id?: string | null
           refusal_fee?: number
           scope?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
