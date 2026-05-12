@@ -30,6 +30,8 @@ interface Invoice {
   status: string;
   created_at: string;
   paid_at: string | null;
+  extra_amount: number;
+  extra_description: string | null;
 }
 interface Item {
   id: number;
