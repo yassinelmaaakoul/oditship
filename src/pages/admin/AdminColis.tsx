@@ -103,6 +103,8 @@ const AdminColis = () => {
     return tb - ta;
   }), [orders, statusFilter, vendeurFilter, search, dateFrom, dateTo]);
 
+  const billingMap = useInvoiceStatusMap(filtered.map((o) => o.id));
+
 
   return (
     <div className="space-y-4">
