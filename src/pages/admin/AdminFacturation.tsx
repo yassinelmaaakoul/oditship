@@ -337,6 +337,55 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   );
 };
 
+const PaymentDialog = ({ invoice, onClose, onSaved }: { invoice: Invoice | null; onClose: () => void; onSaved: () => void }) => {
+  const [reference, setReference] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { setReference(""); setFile(null); }, [invoice?.id]);
+
+  const submit = async () => {
+    if (!invoice) return;
+    if (!reference.trim()) { toast.error("Numéro de référence requis"); return; }
+    if (!file) { toast.error("Capture d'écran du virement requise"); return; }
+    setBusy(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `invoice-${invoice.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("payment-proofs").upload(path, file, { upsert: false });
+      if (upErr) throw upErr;
+      await setInvoicePaid(invoice.id, true, { reference: reference.trim(), proofUrl: path });
+      toast.success("Paiement enregistré");
+      onSaved();
+      onClose();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open={!!invoice} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Enregistrer le paiement — Facture #{invoice?.id}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Numéro de référence du virement bancaire</Label>
+            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="REF-12345..." />
+          </div>
+          <div>
+            <Label>Capture d'écran (preuve du virement)</Label>
+            <Input type="file" accept="image/*,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            {file && <p className="text-xs text-muted-foreground mt-1">{file.name}</p>}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={submit} disabled={busy}>{busy ? "..." : "Marquer comme payée"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: { invoice: Invoice | null; onClose: () => void; recipientName: string; onExport: (inv: Invoice, fmt: "pdf" | "csv") => void; summary?: InvoiceSummary }) => {
   const [items, setItems] = useState<Item[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
