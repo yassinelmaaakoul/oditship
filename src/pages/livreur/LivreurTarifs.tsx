@@ -32,11 +32,12 @@ const LivreurTarifs = () => {
       </div>
       <Card className="p-4">
         <p className="text-sm text-muted-foreground mb-4">
-          Définissez vos tarifs de livraison pour les villes qui vous sont assignées. L'administrateur peut consulter et modifier ces tarifs.
+          Définissez vos tarifs de livraison pour les villes qui vous sont assignées. Les nouveaux packs sont créés en <strong>brouillon</strong> et ne sont utilisés par le système qu'après <strong>validation par l'administrateur</strong>. Une fois validés, ils deviennent en lecture seule.
         </p>
         <PackManager
           scope="livreur"
           ownerId={user.id}
+          mode="owner"
           showPickupDimension={false}
           hideDelay
           allowedDestinationCities={cities}
