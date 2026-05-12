@@ -33,6 +33,8 @@ const LivreurColis = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const billingMap = useInvoiceStatusMap(orders.map((o) => o.id), "livreur");
+
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Mes colis</h2>
