@@ -33,7 +33,7 @@ export const fetchUnbilledOrders = async (recipientType: "vendeur" | "livreur") 
 
   let q = supabase
     .from("orders")
-    .select("id, tracking_number, vendeur_id, assigned_livreur_id, customer_city, product_name, order_value, status, updated_at")
+    .select("id, tracking_number, external_tracking_number, vendeur_id, assigned_livreur_id, customer_city, product_name, order_value, status, updated_at")
     .or(BILLABLE.map((s) => `status.ilike.${s}`).join(","));
   const { data: orders, error } = await q;
   if (error) throw error;
