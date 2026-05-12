@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { OrderDetailsPanel } from "@/components/dashboard/OrderDetailsPanel";
 import { ColisMainRowCell } from "@/components/dashboard/ColisMainRowCell";
+import { OrderBillingBadges } from "@/components/dashboard/OrderBillingBadges";
+import { useInvoiceStatusMap } from "@/lib/useInvoiceStatusMap";
 import { ORDER_STATUSES } from "@/lib/orderStatus";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Printer, Search } from "lucide-react";
@@ -166,7 +168,7 @@ const AdminColis = () => {
                 <TableCell>{o.customer_city}</TableCell>
                 <TableCell className="font-mono text-sm">{o.customer_phone}</TableCell>
                 <TableCell className="font-semibold">{Number(o.order_value).toFixed(2)} MAD</TableCell>
-                <TableCell><StatusBadge status={o.status} /></TableCell>
+                <TableCell><StatusBadge status={o.status} /><OrderBillingBadges status={o.status} info={billingMap[o.id]} /></TableCell>
                 <TableCell className="text-right">
                   {o.status === "Pickup" && (
                     <Button variant="outline" size="sm" onClick={() => printSticker(o)}>
