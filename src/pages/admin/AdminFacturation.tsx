@@ -12,11 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Receipt, Timer, Plus, Pencil, Trash2, Check, X, FileText, FileSpreadsheet } from "lucide-react";
+import { Receipt, Timer, Plus, Pencil, Trash2, FileText, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { generateInvoices, fetchUnbilledCounts, setInvoicePaid } from "@/lib/invoiceGenerator";
 import { exportInvoiceCsv, exportInvoicePdf } from "@/lib/invoiceExport";
-import { Textarea } from "@/components/ui/textarea";
 
 const db = supabase as any;
 
