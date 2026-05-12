@@ -84,6 +84,7 @@ const App = () => (
               <Route path="colis" element={<AdminColis />} />
               <Route path="utilisateurs" element={<AdminUtilisateurs />} />
               <Route path="livreurs" element={<AdminLivreursPage />} />
+              <Route path="facturation" element={<AdminFacturation />} />
               <Route path="parametres" element={<AdminParametres />} />
             </Route>
             <Route path="/admin/livreurs/:livreurId/workflows" element={<ProtectedRoute allowedRoles={["administrateur"]}><AdminLivreurWorkflows /></ProtectedRoute>} />
