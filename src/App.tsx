@@ -32,6 +32,7 @@ import AdminUtilisateurs from "./pages/admin/AdminUtilisateurs";
 import AdminParametres from "./pages/admin/AdminParametres";
 import AdminLivreurWorkflows from "./pages/admin/AdminLivreurWorkflows";
 import AdminLivreursPage from "./pages/admin/AdminLivreursPage";
+import AdminFacturation from "./pages/admin/AdminFacturation";
 
 import LivreurDashboard from "./pages/livreur/LivreurDashboard";
 import LivreurColis from "./pages/livreur/LivreurColis";
