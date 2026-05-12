@@ -94,7 +94,6 @@ const AdminLivreurs = () => {
               <TableHead>Livreur</TableHead>
               <TableHead>Hubs assignés</TableHead>
               <TableHead>API</TableHead>
-              <TableHead>API Token</TableHead>
               <TableHead>Workflows</TableHead>
             </TableRow>
           </TableHeader>
