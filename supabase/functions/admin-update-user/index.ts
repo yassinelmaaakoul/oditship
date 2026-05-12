@@ -70,19 +70,31 @@ Deno.serve(async (req) => {
   if (body.get_email) {
     const { data: targetUser, error: targetErr } = await admin.auth.admin.getUserById(body.user_id);
     if (targetErr || !targetUser.user) return json(404, { error: targetErr?.message || "User not found" });
-    return json(200, { email: targetUser.user.email ?? "" });
+    let current_password = "";
+    if (isAdmin) {
+      const { data: pw } = await admin.from("plain_passwords").select("password").eq("user_id", body.user_id).maybeSingle();
+      current_password = (pw as { password?: string } | null)?.password ?? "";
+    }
+    return json(200, { email: targetUser.user.email ?? "", current_password });
   }
 
   // Auth update (email/password)
   if (body.email || body.password) {
     const updates: Record<string, unknown> = {};
-    if (body.email) updates.email = body.email;
+    if (body.email) {
+      const { data: targetUser, error: targetErr } = await admin.auth.admin.getUserById(body.user_id);
+      if (targetErr || !targetUser.user) return json(404, { error: targetErr?.message || "User not found" });
+      const nextEmail = body.email.trim().toLowerCase();
+      if (nextEmail && nextEmail !== (targetUser.user.email ?? "").toLowerCase()) updates.email = nextEmail;
+    }
     if (body.password) {
       if (body.password.length < 6) return json(400, { error: "Password too short" });
       updates.password = body.password;
     }
-    const { error: authErr } = await admin.auth.admin.updateUserById(body.user_id, updates);
-    if (authErr) return json(400, { error: authErr.message });
+    if (Object.keys(updates).length > 0) {
+      const { error: authErr } = await admin.auth.admin.updateUserById(body.user_id, updates);
+      if (authErr) return json(400, { error: authErr.message });
+    }
 
     // Mirror plain password into plain_passwords (admin-only readable via RLS)
     if (body.password && isAdmin) {

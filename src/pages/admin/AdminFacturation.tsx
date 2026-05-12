@@ -85,6 +85,7 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
     { status: "all", from: "", to: "", q: "", minAmount: "", maxAmount: "" }
   );
   const [unpaidWarn, setUnpaidWarn] = useState<Invoice | null>(null);
+  const [paidLockWarn, setPaidLockWarn] = useState<Invoice | null>(null);
 
   const toggleOne = (id: number) => {
     const n = new Set(selected);
@@ -101,6 +102,8 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
 
   const bulkDelete = async () => {
     if (selected.size === 0) return;
+    const paid = invoices.find((i) => selected.has(i.id) && i.status === "paid");
+    if (paid) { setPaidLockWarn(paid); return; }
     if (!confirm(`Supprimer ${selected.size} facture(s) ?`)) return;
     const ids = Array.from(selected);
     await db.from("invoice_items").delete().in("invoice_id", ids);
@@ -206,10 +209,11 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
     } catch (e: any) { toast.error(e.message || "Erreur"); }
   };
 
-  const deleteInvoice = async (id: number) => {
+  const deleteInvoice = async (inv: Invoice) => {
+    if (inv.status === "paid") { setPaidLockWarn(inv); return; }
     if (!confirm("Supprimer cette facture ?")) return;
-    await db.from("invoice_items").delete().eq("invoice_id", id);
-    const { error } = await db.from("invoices").delete().eq("id", id);
+    await db.from("invoice_items").delete().eq("invoice_id", inv.id);
+    const { error } = await db.from("invoices").delete().eq("id", inv.id);
     if (error) return toast.error(error.message);
     toast.success("Supprimée");
     load();
@@ -241,7 +245,8 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
       status: inv.status,
     };
     const items = (its ?? []) as Item[];
-    fmt === "pdf" ? exportInvoicePdf(exportData, items) : exportInvoiceCsv(exportData, items);
+    if (fmt === "pdf") exportInvoicePdf(exportData, items);
+    else exportInvoiceCsv(exportData, items);
   };
 
   const targetLabel = (id: string) => {
@@ -432,7 +437,7 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
                 <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                   <Button variant="outline" size="sm" onClick={() => exportInvoice(inv, "pdf")}><FileText className="h-4 w-4 mr-1" />PDF</Button>
                   <Button variant="outline" size="sm" onClick={() => exportInvoice(inv, "csv")}><FileSpreadsheet className="h-4 w-4 mr-1" />CSV</Button>
-                  <Button variant="ghost" size="sm" onClick={() => deleteInvoice(inv.id)}>
+                  <Button variant="ghost" size="sm" onClick={() => deleteInvoice(inv)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TableCell>
@@ -454,6 +459,20 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={async () => { if (unpaidWarn) { await markUnpaid(unpaidWarn); setUnpaidWarn(null); } }}>Confirmer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!paidLockWarn} onOpenChange={(o) => !o && setPaidLockWarn(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Facture déjà payée</AlertDialogTitle>
+            <AlertDialogDescription>
+              La facture #{paidLockWarn?.id} a été payée. Aucun contenu ne peut être modifié ou supprimé tant qu'elle reste Payée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setPaidLockWarn(null)}>Compris</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -550,6 +569,13 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
   const [currentNet, setCurrentNet] = useState(0);
   const [newExtraAmount, setNewExtraAmount] = useState<number>(0);
   const [newExtraDesc, setNewExtraDesc] = useState("");
+  const [paidLockOpen, setPaidLockOpen] = useState(false);
+  const isPaid = invoice?.status === "paid";
+  const warnIfPaid = () => {
+    if (!isPaid) return false;
+    setPaidLockOpen(true);
+    return true;
+  };
 
   const reload = () => {
     if (!invoice) return;
@@ -561,8 +587,9 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
   };
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [invoice]);
 
-  const startEdit = (it: Item) => { setEditing(it.id); setDraft({ ...it }); };
+  const startEdit = (it: Item) => { if (warnIfPaid()) return; setEditing(it.id); setDraft({ ...it }); };
   const saveEdit = async () => {
+    if (warnIfPaid()) return;
     const isExtra = draft.fee_type === "extra";
     const patch: any = isExtra
       ? { fee_amount: Number(draft.fee_amount || 0), description: draft.description || null }
@@ -583,6 +610,7 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
   };
 
   const removeItem = async (id: number) => {
+    if (warnIfPaid()) return;
     if (!confirm("Supprimer cette ligne ?")) return;
     const { error } = await db.from("invoice_items").delete().eq("id", id);
     if (error) return toast.error(error.message);
@@ -592,6 +620,7 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
 
   const addExtra = async () => {
     if (!invoice) return;
+    if (warnIfPaid()) return;
     if (!newExtraDesc.trim()) return toast.error("Description requise");
     const { error } = await db.from("invoice_items").insert({
       invoice_id: invoice.id,
@@ -654,6 +683,20 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
             <Button size="sm" onClick={addExtra}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>
           </div>
         </div>
+
+        <AlertDialog open={paidLockOpen} onOpenChange={setPaidLockOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Facture déjà payée</AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette facture a été payée. Aucun contenu ne peut être modifié tant qu'elle reste Payée.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setPaidLockOpen(false)}>Compris</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Table>
           <TableHeader>

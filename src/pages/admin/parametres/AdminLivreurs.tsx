@@ -36,7 +36,7 @@ const AdminLivreurs = () => {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [tarifsTarget, setTarifsTarget] = useState<Livreur | null>(null);
   const [editTarget, setEditTarget] = useState<Livreur | null>(null);
-  const [editForm, setEditForm] = useState<{ full_name: string; phone: string; email: string; password: string }>({ full_name: "", phone: "", email: "", password: "" });
+  const [editForm, setEditForm] = useState<{ full_name: string; phone: string; email: string; current_password: string; password: string }>({ full_name: "", phone: "", email: "", current_password: "", password: "" });
   const [editBusy, setEditBusy] = useState(false);
   const [hubCities, setHubCities] = useState<Array<{ hub_id: number; city_name: string }>>([]);
 
@@ -124,12 +124,15 @@ const AdminLivreurs = () => {
 
   const openEdit = async (l: Livreur) => {
     setEditTarget(l);
-    setEditForm({ full_name: l.full_name || "", phone: "", email: "", password: "" });
+    setEditForm({ full_name: l.full_name || "", phone: "", email: "", current_password: "", password: "" });
     const [{ data: prof }, emailRes] = await Promise.all([
       db.from("profiles").select("phone").eq("id", l.id).maybeSingle(),
       supabase.functions.invoke("admin-update-user", { body: { user_id: l.id, get_email: true } }),
     ]);
-    setEditForm((f) => ({ ...f, phone: (prof as any)?.phone ?? "", email: (emailRes.data as any)?.email ?? "" }));
+    if (emailRes.error) toast.error(emailRes.error.message || "Impossible de charger l'email");
+    const info = (emailRes.data as { email?: string; current_password?: string } | null) ?? {};
+    const profileInfo = prof as { phone?: string | null } | null;
+    setEditForm((f) => ({ ...f, phone: profileInfo?.phone ?? "", email: info.email ?? "", current_password: info.current_password ?? "" }));
   };
 
   const submitEdit = async () => {
@@ -272,6 +275,7 @@ const AdminLivreurs = () => {
             <div><Label>Nom complet</Label><Input value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} /></div>
             <div><Label>Téléphone</Label><Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></div>
             <div><Label>Email</Label><Input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} /></div>
+            <div><Label>Mot de passe actuel</Label><Input value={editForm.current_password || "Non enregistré"} readOnly className="bg-muted" /></div>
             <div><Label>Nouveau mot de passe</Label><Input type="password" placeholder="Laisser vide pour ne pas changer" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} /></div>
           </div>
           <DialogFooter>
