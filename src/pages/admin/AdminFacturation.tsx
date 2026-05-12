@@ -403,17 +403,15 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
   const [items, setItems] = useState<Item[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState<Partial<Item>>({});
-  const [extraAmount, setExtraAmount] = useState(0);
-  const [extraDesc, setExtraDesc] = useState("");
   const [currentNet, setCurrentNet] = useState(0);
+  const [newExtraAmount, setNewExtraAmount] = useState<number>(0);
+  const [newExtraDesc, setNewExtraDesc] = useState("");
 
   const reload = () => {
     if (!invoice) return;
     db.from("invoice_items").select("*").eq("invoice_id", invoice.id).order("id").then(({ data }: any) => setItems((data ?? []) as Item[]));
-    db.from("invoices").select("net_amount, extra_amount, extra_description").eq("id", invoice.id).single().then(({ data }: any) => {
+    db.from("invoices").select("net_amount").eq("id", invoice.id).single().then(({ data }: any) => {
       if (!data) return;
-      setExtraAmount(Number(data.extra_amount || 0));
-      setExtraDesc(data.extra_description || "");
       setCurrentNet(Number(data.net_amount || 0));
     });
   };
@@ -421,14 +419,18 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
 
   const startEdit = (it: Item) => { setEditing(it.id); setDraft({ ...it }); };
   const saveEdit = async () => {
-    const { error } = await db.from("invoice_items").update({
-      product_name: draft.product_name,
-      tracking_number: draft.tracking_number,
-      customer_city: draft.customer_city,
-      status_snapshot: draft.status_snapshot,
-      order_value: Number(draft.order_value || 0),
-      fee_amount: Number(draft.fee_amount || 0),
-    }).eq("id", editing);
+    const isExtra = draft.fee_type === "extra";
+    const patch: any = isExtra
+      ? { fee_amount: Number(draft.fee_amount || 0), description: draft.description || null }
+      : {
+          product_name: draft.product_name,
+          tracking_number: draft.tracking_number,
+          customer_city: draft.customer_city,
+          status_snapshot: draft.status_snapshot,
+          order_value: Number(draft.order_value || 0),
+          fee_amount: Number(draft.fee_amount || 0),
+        };
+    const { error } = await db.from("invoice_items").update(patch).eq("id", editing);
     if (error) return toast.error(error.message);
     if (invoice) await recomputeInvoiceTotals(invoice.id);
     toast.success("Ligne mise à jour");
@@ -436,21 +438,39 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
     reload();
   };
 
-  const saveExtra = async () => {
-    if (!invoice) return;
-    const { error } = await db.from("invoices").update({
-      extra_amount: Number(extraAmount || 0),
-      extra_description: extraDesc || null,
-    }).eq("id", invoice.id);
+  const removeItem = async (id: number) => {
+    if (!confirm("Supprimer cette ligne ?")) return;
+    const { error } = await db.from("invoice_items").delete().eq("id", id);
     if (error) return toast.error(error.message);
-    await recomputeInvoiceTotals(invoice.id);
-    toast.success("Autre tarif enregistré");
+    if (invoice) await recomputeInvoiceTotals(invoice.id);
     reload();
   };
 
-  const totalFees = items.reduce((a, i) => a + Number(i.fee_amount || 0), 0);
-  const totalCod = items.filter((i) => i.fee_type === "livraison").reduce((a, i) => a + Number(i.order_value || 0), 0);
+  const addExtra = async () => {
+    if (!invoice) return;
+    if (!newExtraDesc.trim()) return toast.error("Description requise");
+    const { error } = await db.from("invoice_items").insert({
+      invoice_id: invoice.id,
+      fee_type: "extra",
+      fee_amount: Number(newExtraAmount || 0),
+      order_value: 0,
+      description: newExtraDesc.trim(),
+      product_name: newExtraDesc.trim(),
+      status_snapshot: "Autre tarif",
+    });
+    if (error) return toast.error(error.message);
+    await recomputeInvoiceTotals(invoice.id);
+    setNewExtraAmount(0);
+    setNewExtraDesc("");
+    toast.success("Autre tarif ajouté");
+    reload();
+  };
 
+  const totalFees = items.filter((i) => i.fee_type !== "extra").reduce((a, i) => a + Number(i.fee_amount || 0), 0);
+  const totalExtras = items.filter((i) => i.fee_type === "extra").reduce((a, i) => a + Number(i.fee_amount || 0), 0);
+  const totalCod = items.filter((i) => i.fee_type === "livraison").reduce((a, i) => a + Number(i.order_value || 0), 0);
+  const orderItems = items.filter((i) => i.fee_type !== "extra");
+  const extraItems = items.filter((i) => i.fee_type === "extra");
 
   return (
     <Dialog open={!!invoice} onOpenChange={(o) => !o && onClose()}>
@@ -466,37 +486,40 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
             )}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid sm:grid-cols-4 gap-2 text-sm mb-3">
-          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Commandes</div><div className="font-semibold">{summary?.count ?? items.length}</div></div>
+        <div className="grid sm:grid-cols-5 gap-2 text-sm mb-3">
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">COD</div><div className="font-semibold font-mono">{(summary?.cod ?? totalCod).toFixed(2)}</div></div>
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Commandes</div><div className="font-semibold">{summary?.count ?? orderItems.length}</div></div>
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Tarif</div><div className="font-semibold font-mono">{totalFees.toFixed(2)}</div></div>
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Autre tarif</div><div className="font-semibold font-mono">{totalExtras.toFixed(2)}</div></div>
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Reste</div><div className="font-semibold font-mono">{currentNet.toFixed(2)}</div></div>
         </div>
+
         <div className="rounded-md border p-3 mb-3 space-y-2 bg-muted/30">
-          <div className="text-sm font-medium">Autre tarif</div>
+          <div className="text-sm font-medium">Ajouter un autre tarif</div>
           <div className="grid sm:grid-cols-3 gap-2">
             <div>
               <Label className="text-xs">Montant</Label>
-              <Input type="number" step="0.01" value={extraAmount} onChange={(e) => setExtraAmount(Number(e.target.value))} className="h-8" />
+              <Input type="number" step="0.01" value={newExtraAmount} onChange={(e) => setNewExtraAmount(Number(e.target.value))} className="h-8" />
             </div>
             <div className="sm:col-span-2">
               <Label className="text-xs">Description</Label>
-              <Input value={extraDesc} onChange={(e) => setExtraDesc(e.target.value)} placeholder="Ex. emballage spécial, frais de retour…" className="h-8" />
+              <Input value={newExtraDesc} onChange={(e) => setNewExtraDesc(e.target.value)} placeholder="Ex. emballage spécial, frais de retour…" className="h-8" />
             </div>
           </div>
           <div className="flex justify-end">
-            <Button size="sm" onClick={saveExtra}>Enregistrer</Button>
+            <Button size="sm" onClick={addExtra}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>
           </div>
         </div>
+
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tracking</TableHead><TableHead>Produit</TableHead><TableHead>Ville</TableHead>
+              <TableHead>Tracking</TableHead><TableHead>Produit / Description</TableHead><TableHead>Ville</TableHead>
               <TableHead>Statut</TableHead><TableHead>Prix</TableHead><TableHead>Tarif</TableHead><TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((it) => (
+            {orderItems.map((it) => (
               <TableRow key={it.id}>
                 {editing === it.id ? (
                   <>
@@ -524,6 +547,37 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
                 )}
               </TableRow>
             ))}
+
+            {extraItems.map((it) => (
+              <TableRow key={it.id} className="bg-amber-50/50 dark:bg-amber-950/20">
+                {editing === it.id ? (
+                  <>
+                    <TableCell colSpan={3}>
+                      <Input className="h-8" value={draft.description || ""} placeholder="Description" onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                    </TableCell>
+                    <TableCell><Badge variant="outline">Autre tarif</Badge></TableCell>
+                    <TableCell>—</TableCell>
+                    <TableCell><Input className="h-8 w-24" type="number" step="0.01" value={draft.fee_amount ?? 0} onChange={(e) => setDraft({ ...draft, fee_amount: Number(e.target.value) })} /></TableCell>
+                    <TableCell>
+                      <Button size="sm" onClick={saveEdit}>OK</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>X</Button>
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell colSpan={3} className="italic">{it.description || it.product_name || "Autre tarif"}</TableCell>
+                    <TableCell><Badge className="bg-amber-500 text-white border-transparent">Autre tarif</Badge></TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell className="font-mono">{Number(it.fee_amount).toFixed(2)}</TableCell>
+                    <TableCell className="space-x-1">
+                      <Button size="sm" variant="ghost" onClick={() => startEdit(it)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => removeItem(it.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                    </TableCell>
+                  </>
+                )}
+              </TableRow>
+            ))}
+
             {items.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Aucune ligne</TableCell></TableRow>}
           </TableBody>
         </Table>
