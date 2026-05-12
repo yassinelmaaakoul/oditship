@@ -179,8 +179,8 @@ export const setInvoicePaid = async (
       .map((r) => ({
         order_id: r.order_id,
         old_status: r.status_snapshot,
-        new_status: r.status_snapshot,
-        notes: `Facture #${invoiceId} vendeur ${paid ? "payée" : "marquée non payée"}`,
+        new_status: paid ? "Payée" : "Facturé",
+        notes: `Facture #${invoiceId} ${paid ? "payée" : "marquée non payée"}`,
         actor_label: "Facturation",
       }));
     if (rows.length) await db.from("order_status_history").insert(rows);
