@@ -40,6 +40,9 @@ const VendeurFacturation = () => {
   const [summary, setSummary] = useState<Record<number, Summary>>({});
   const [open, setOpen] = useState<Invoice | null>(null);
   const [items, setItems] = useState<Item[]>([]);
+  const [filter, setFilter] = useState<{ status: "all" | "paid" | "unpaid"; from: string; to: string; q: string }>(
+    { status: "all", from: "", to: "", q: "" }
+  );
 
   useEffect(() => {
     db.from("invoices").select("*").eq("recipient_type", "vendeur").order("created_at", { ascending: false })
@@ -79,11 +82,14 @@ const VendeurFacturation = () => {
     fmt === "pdf" ? exportInvoicePdf(data, (its ?? []) as any) : exportInvoiceCsv(data, (its ?? []) as any);
   };
 
-  const viewProof = async (path: string) => {
-    const { data, error } = await supabase.storage.from("payment-proofs").createSignedUrl(path, 60 * 5);
-    if (error || !data?.signedUrl) return;
-    window.open(data.signedUrl, "_blank");
-  };
+  const filteredInvoices = invoices.filter((inv) => {
+    if (filter.status === "paid" && inv.status !== "paid") return false;
+    if (filter.status === "unpaid" && inv.status === "paid") return false;
+    if (filter.from && new Date(inv.created_at) < new Date(filter.from)) return false;
+    if (filter.to && new Date(inv.created_at) > new Date(filter.to + "T23:59:59")) return false;
+    if (filter.q.trim() && !String(inv.id).includes(filter.q.trim())) return false;
+    return true;
+  });
 
   const orderItems = items.filter((i) => i.fee_type !== "extra");
   const extraItems = items.filter((i) => i.fee_type === "extra");
@@ -94,6 +100,28 @@ const VendeurFacturation = () => {
         <Receipt className="h-6 w-6 text-primary" />
         <h2 className="text-2xl font-bold">Facturation</h2>
       </div>
+
+      <Card className="p-3 flex flex-wrap items-center gap-2">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <Select value={filter.status} onValueChange={(v) => setFilter({ ...filter, status: v as any })}>
+          <SelectTrigger className="h-8 w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous statuts</SelectItem>
+            <SelectItem value="paid">Payées</SelectItem>
+            <SelectItem value="unpaid">Non payées</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input className="h-8 w-32" placeholder="N° facture…" value={filter.q} onChange={(e) => setFilter({ ...filter, q: e.target.value })} />
+        <span className="text-xs text-muted-foreground">Du</span>
+        <Input className="h-8 w-36" type="date" value={filter.from} onChange={(e) => setFilter({ ...filter, from: e.target.value })} />
+        <span className="text-xs text-muted-foreground">au</span>
+        <Input className="h-8 w-36" type="date" value={filter.to} onChange={(e) => setFilter({ ...filter, to: e.target.value })} />
+        {(filter.status !== "all" || filter.q || filter.from || filter.to) && (
+          <Button size="sm" variant="ghost" onClick={() => setFilter({ status: "all", from: "", to: "", q: "" })}>
+            <X className="h-3 w-3 mr-1" />Réinitialiser
+          </Button>
+        )}
+      </Card>
 
       <Card>
         <Table>
