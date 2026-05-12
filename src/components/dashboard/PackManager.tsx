@@ -68,7 +68,8 @@ const PackManager = ({ scope, ownerId, allowedDestinationCities, showPickupDimen
 
   const savePack = async () => {
     if (!editPack?.name) return toast.error("Nom requis");
-    const payload = {
+    const isLivreurOwner = scope === "livreur" && mode === "owner";
+    const payload: any = {
       name: editPack.name,
       delivery_fee: Number(editPack.delivery_fee || 0),
       refusal_fee: Number(editPack.refusal_fee || 0),
@@ -77,6 +78,8 @@ const PackManager = ({ scope, ownerId, allowedDestinationCities, showPickupDimen
       scope,
       owner_id: scope === "global" ? null : ownerId,
     };
+    // Livreur-owner-created packs always start (and stay) as draft.
+    if (isLivreurOwner) payload.status = "draft";
     if (editPack.id) {
       const { error } = await db.from("pricing_packs").update(payload).eq("id", editPack.id);
       if (error) return toast.error(error.message);
@@ -84,9 +87,16 @@ const PackManager = ({ scope, ownerId, allowedDestinationCities, showPickupDimen
     } else {
       const { error } = await db.from("pricing_packs").insert(payload);
       if (error) return toast.error(error.message);
-      toast.success("Pack créé");
+      toast.success(isLivreurOwner ? "Pack créé en brouillon — en attente de validation" : "Pack créé");
     }
     setEditPack(null);
+    reload();
+  };
+
+  const validatePack = async (id: number) => {
+    const { error } = await db.from("pricing_packs").update({ status: "active" }).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Pack validé");
     reload();
   };
 
