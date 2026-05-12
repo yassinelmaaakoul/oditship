@@ -15,7 +15,7 @@ export const OrderBillingBadges = ({
   const invoiced = !!info?.invoiced;
   const paid = !!info?.paid;
   return (
-    <div className="flex flex-wrap gap-1 mt-1">
+    <div className="inline-flex flex-wrap items-center gap-1">
       {/* Use a distinctive amber/orange tone so "Facturé" stands out from green status badges */}
       <Badge
         className={
