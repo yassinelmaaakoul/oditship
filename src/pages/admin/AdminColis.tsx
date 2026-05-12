@@ -170,7 +170,7 @@ const AdminColis = () => {
                 <TableCell>{o.customer_city}</TableCell>
                 <TableCell className="font-mono text-sm">{o.customer_phone}</TableCell>
                 <TableCell className="font-semibold">{Number(o.order_value).toFixed(2)} MAD</TableCell>
-                <TableCell><StatusBadge status={o.status} /><OrderBillingBadges status={o.status} info={billingMap[o.id]} /></TableCell>
+                <TableCell><div className="flex flex-wrap items-center gap-1.5"><StatusBadge status={o.status} /><OrderBillingBadges status={o.status} info={billingMap[o.id]} /></div></TableCell>
                 <TableCell className="text-right">
                   {o.status === "Pickup" && (
                     <Button variant="outline" size="sm" onClick={() => printSticker(o)}>

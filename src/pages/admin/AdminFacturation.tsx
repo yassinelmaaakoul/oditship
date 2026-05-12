@@ -30,8 +30,6 @@ interface Invoice {
   status: string;
   created_at: string;
   paid_at: string | null;
-  extra_amount: number;
-  extra_description: string | null;
 }
 interface Item {
   id: number;
@@ -44,6 +42,7 @@ interface Item {
   order_value: number;
   fee_amount: number;
   fee_type: string | null;
+  description: string | null;
 }
 interface Profile { id: string; username: string; full_name: string | null; }
 interface Schedule {
@@ -63,7 +62,7 @@ const DAYS = [
   { v: 4, l: "Jeu" }, { v: 5, l: "Ven" }, { v: 6, l: "Sam" }, { v: 0, l: "Dim" },
 ];
 
-interface InvoiceSummary { count: number; cod: number; fees: number; }
+interface InvoiceSummary { count: number; cod: number; fees: number; extras: number; extrasCount: number; }
 
 const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -94,13 +93,18 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
 
     if (list.length) {
       const ids = list.map((x) => x.id);
-      const { data: its } = await db.from("invoice_items").select("invoice_id, order_value, fee_amount").in("invoice_id", ids);
+      const { data: its } = await db.from("invoice_items").select("invoice_id, order_value, fee_amount, fee_type").in("invoice_id", ids);
       const map: Record<number, InvoiceSummary> = {};
       for (const r of (its ?? []) as any[]) {
-        const cur = map[r.invoice_id] ?? { count: 0, cod: 0, fees: 0 };
-        cur.count += 1;
-        cur.cod += Number(r.order_value || 0);
-        cur.fees += Number(r.fee_amount || 0);
+        const cur = map[r.invoice_id] ?? { count: 0, cod: 0, fees: 0, extras: 0, extrasCount: 0 };
+        if (r.fee_type === "extra") {
+          cur.extras += Number(r.fee_amount || 0);
+          cur.extrasCount += 1;
+        } else {
+          cur.count += 1;
+          cur.cod += Number(r.order_value || 0);
+          cur.fees += Number(r.fee_amount || 0);
+        }
         map[r.invoice_id] = cur;
       }
       setSummary(map);
@@ -168,8 +172,6 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
       period_end: inv.period_end,
       net_amount: inv.net_amount,
       status: inv.status,
-      extra_amount: inv.extra_amount,
-      extra_description: inv.extra_description,
     };
     const items = (its ?? []) as Item[];
     fmt === "pdf" ? exportInvoicePdf(exportData, items) : exportInvoiceCsv(exportData, items);
@@ -264,7 +266,8 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
             <TableRow>
               <TableHead className="w-20">Facture</TableHead>
               <TableHead>{type === "vendeur" ? "Vendeur" : "Livreur"}</TableHead>
-              <TableHead>Commandes / COD</TableHead>
+              <TableHead>COD</TableHead>
+              <TableHead>Commandes</TableHead>
               <TableHead>Tarif</TableHead>
               <TableHead>Autre tarif</TableHead>
               <TableHead>Reste</TableHead>
@@ -275,21 +278,19 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
           </TableHeader>
           <TableBody>
             {invoices.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
             ) : invoices.map((inv) => {
               const s = summary[inv.id];
               return (
               <TableRow key={inv.id} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpen(inv)}>
                 <TableCell className="font-mono font-semibold">#{inv.id}</TableCell>
                 <TableCell className="font-medium">{profileName(type === "vendeur" ? inv.vendeur_id : inv.livreur_id)}</TableCell>
-                <TableCell className="text-sm">
-                  <div>{s?.count ?? 0} commande(s)</div>
-                  <div className="text-xs text-muted-foreground font-mono">COD : {(s?.cod ?? 0).toFixed(2)}</div>
-                </TableCell>
+                <TableCell className="font-mono">{(s?.cod ?? 0).toFixed(2)}</TableCell>
+                <TableCell>{s?.count ?? 0}</TableCell>
                 <TableCell className="font-mono">{(s?.fees ?? 0).toFixed(2)}</TableCell>
                 <TableCell className="font-mono text-xs">
-                  <div>{Number(inv.extra_amount || 0).toFixed(2)}</div>
-                  {inv.extra_description && <div className="text-muted-foreground truncate max-w-[140px]" title={inv.extra_description}>{inv.extra_description}</div>}
+                  <div>{(s?.extras ?? 0).toFixed(2)}</div>
+                  {s && s.extrasCount > 0 && <div className="text-muted-foreground">{s.extrasCount} ligne(s)</div>}
                 </TableCell>
                 <TableCell className="font-mono font-semibold">{Number(inv.net_amount).toFixed(2)}</TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
@@ -402,17 +403,15 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
   const [items, setItems] = useState<Item[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState<Partial<Item>>({});
-  const [extraAmount, setExtraAmount] = useState(0);
-  const [extraDesc, setExtraDesc] = useState("");
   const [currentNet, setCurrentNet] = useState(0);
+  const [newExtraAmount, setNewExtraAmount] = useState<number>(0);
+  const [newExtraDesc, setNewExtraDesc] = useState("");
 
   const reload = () => {
     if (!invoice) return;
     db.from("invoice_items").select("*").eq("invoice_id", invoice.id).order("id").then(({ data }: any) => setItems((data ?? []) as Item[]));
-    db.from("invoices").select("net_amount, extra_amount, extra_description").eq("id", invoice.id).single().then(({ data }: any) => {
+    db.from("invoices").select("net_amount").eq("id", invoice.id).single().then(({ data }: any) => {
       if (!data) return;
-      setExtraAmount(Number(data.extra_amount || 0));
-      setExtraDesc(data.extra_description || "");
       setCurrentNet(Number(data.net_amount || 0));
     });
   };
@@ -420,14 +419,18 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
 
   const startEdit = (it: Item) => { setEditing(it.id); setDraft({ ...it }); };
   const saveEdit = async () => {
-    const { error } = await db.from("invoice_items").update({
-      product_name: draft.product_name,
-      tracking_number: draft.tracking_number,
-      customer_city: draft.customer_city,
-      status_snapshot: draft.status_snapshot,
-      order_value: Number(draft.order_value || 0),
-      fee_amount: Number(draft.fee_amount || 0),
-    }).eq("id", editing);
+    const isExtra = draft.fee_type === "extra";
+    const patch: any = isExtra
+      ? { fee_amount: Number(draft.fee_amount || 0), description: draft.description || null }
+      : {
+          product_name: draft.product_name,
+          tracking_number: draft.tracking_number,
+          customer_city: draft.customer_city,
+          status_snapshot: draft.status_snapshot,
+          order_value: Number(draft.order_value || 0),
+          fee_amount: Number(draft.fee_amount || 0),
+        };
+    const { error } = await db.from("invoice_items").update(patch).eq("id", editing);
     if (error) return toast.error(error.message);
     if (invoice) await recomputeInvoiceTotals(invoice.id);
     toast.success("Ligne mise à jour");
@@ -435,21 +438,39 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
     reload();
   };
 
-  const saveExtra = async () => {
-    if (!invoice) return;
-    const { error } = await db.from("invoices").update({
-      extra_amount: Number(extraAmount || 0),
-      extra_description: extraDesc || null,
-    }).eq("id", invoice.id);
+  const removeItem = async (id: number) => {
+    if (!confirm("Supprimer cette ligne ?")) return;
+    const { error } = await db.from("invoice_items").delete().eq("id", id);
     if (error) return toast.error(error.message);
-    await recomputeInvoiceTotals(invoice.id);
-    toast.success("Autre tarif enregistré");
+    if (invoice) await recomputeInvoiceTotals(invoice.id);
     reload();
   };
 
-  const totalFees = items.reduce((a, i) => a + Number(i.fee_amount || 0), 0);
-  const totalCod = items.filter((i) => i.fee_type === "livraison").reduce((a, i) => a + Number(i.order_value || 0), 0);
+  const addExtra = async () => {
+    if (!invoice) return;
+    if (!newExtraDesc.trim()) return toast.error("Description requise");
+    const { error } = await db.from("invoice_items").insert({
+      invoice_id: invoice.id,
+      fee_type: "extra",
+      fee_amount: Number(newExtraAmount || 0),
+      order_value: 0,
+      description: newExtraDesc.trim(),
+      product_name: newExtraDesc.trim(),
+      status_snapshot: "Autre tarif",
+    });
+    if (error) return toast.error(error.message);
+    await recomputeInvoiceTotals(invoice.id);
+    setNewExtraAmount(0);
+    setNewExtraDesc("");
+    toast.success("Autre tarif ajouté");
+    reload();
+  };
 
+  const totalFees = items.filter((i) => i.fee_type !== "extra").reduce((a, i) => a + Number(i.fee_amount || 0), 0);
+  const totalExtras = items.filter((i) => i.fee_type === "extra").reduce((a, i) => a + Number(i.fee_amount || 0), 0);
+  const totalCod = items.filter((i) => i.fee_type === "livraison").reduce((a, i) => a + Number(i.order_value || 0), 0);
+  const orderItems = items.filter((i) => i.fee_type !== "extra");
+  const extraItems = items.filter((i) => i.fee_type === "extra");
 
   return (
     <Dialog open={!!invoice} onOpenChange={(o) => !o && onClose()}>
@@ -465,37 +486,40 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
             )}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid sm:grid-cols-4 gap-2 text-sm mb-3">
-          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Commandes</div><div className="font-semibold">{summary?.count ?? items.length}</div></div>
+        <div className="grid sm:grid-cols-5 gap-2 text-sm mb-3">
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">COD</div><div className="font-semibold font-mono">{(summary?.cod ?? totalCod).toFixed(2)}</div></div>
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Commandes</div><div className="font-semibold">{summary?.count ?? orderItems.length}</div></div>
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Tarif</div><div className="font-semibold font-mono">{totalFees.toFixed(2)}</div></div>
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Autre tarif</div><div className="font-semibold font-mono">{totalExtras.toFixed(2)}</div></div>
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Reste</div><div className="font-semibold font-mono">{currentNet.toFixed(2)}</div></div>
         </div>
+
         <div className="rounded-md border p-3 mb-3 space-y-2 bg-muted/30">
-          <div className="text-sm font-medium">Autre tarif</div>
+          <div className="text-sm font-medium">Ajouter un autre tarif</div>
           <div className="grid sm:grid-cols-3 gap-2">
             <div>
               <Label className="text-xs">Montant</Label>
-              <Input type="number" step="0.01" value={extraAmount} onChange={(e) => setExtraAmount(Number(e.target.value))} className="h-8" />
+              <Input type="number" step="0.01" value={newExtraAmount} onChange={(e) => setNewExtraAmount(Number(e.target.value))} className="h-8" />
             </div>
             <div className="sm:col-span-2">
               <Label className="text-xs">Description</Label>
-              <Input value={extraDesc} onChange={(e) => setExtraDesc(e.target.value)} placeholder="Ex. emballage spécial, frais de retour…" className="h-8" />
+              <Input value={newExtraDesc} onChange={(e) => setNewExtraDesc(e.target.value)} placeholder="Ex. emballage spécial, frais de retour…" className="h-8" />
             </div>
           </div>
           <div className="flex justify-end">
-            <Button size="sm" onClick={saveExtra}>Enregistrer</Button>
+            <Button size="sm" onClick={addExtra}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>
           </div>
         </div>
+
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tracking</TableHead><TableHead>Produit</TableHead><TableHead>Ville</TableHead>
+              <TableHead>Tracking</TableHead><TableHead>Produit / Description</TableHead><TableHead>Ville</TableHead>
               <TableHead>Statut</TableHead><TableHead>Prix</TableHead><TableHead>Tarif</TableHead><TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((it) => (
+            {orderItems.map((it) => (
               <TableRow key={it.id}>
                 {editing === it.id ? (
                   <>
@@ -523,6 +547,37 @@ const InvoiceDetail = ({ invoice, onClose, recipientName, onExport, summary }: {
                 )}
               </TableRow>
             ))}
+
+            {extraItems.map((it) => (
+              <TableRow key={it.id} className="bg-amber-50/50 dark:bg-amber-950/20">
+                {editing === it.id ? (
+                  <>
+                    <TableCell colSpan={3}>
+                      <Input className="h-8" value={draft.description || ""} placeholder="Description" onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                    </TableCell>
+                    <TableCell><Badge variant="outline">Autre tarif</Badge></TableCell>
+                    <TableCell>—</TableCell>
+                    <TableCell><Input className="h-8 w-24" type="number" step="0.01" value={draft.fee_amount ?? 0} onChange={(e) => setDraft({ ...draft, fee_amount: Number(e.target.value) })} /></TableCell>
+                    <TableCell>
+                      <Button size="sm" onClick={saveEdit}>OK</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>X</Button>
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell colSpan={3} className="italic">{it.description || it.product_name || "Autre tarif"}</TableCell>
+                    <TableCell><Badge className="bg-amber-500 text-white border-transparent">Autre tarif</Badge></TableCell>
+                    <TableCell className="text-muted-foreground">—</TableCell>
+                    <TableCell className="font-mono">{Number(it.fee_amount).toFixed(2)}</TableCell>
+                    <TableCell className="space-x-1">
+                      <Button size="sm" variant="ghost" onClick={() => startEdit(it)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => removeItem(it.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                    </TableCell>
+                  </>
+                )}
+              </TableRow>
+            ))}
+
             {items.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Aucune ligne</TableCell></TableRow>}
           </TableBody>
         </Table>

@@ -9,8 +9,6 @@ export interface ExportInvoice {
   period_end: string;
   net_amount: number;
   status: string;
-  extra_amount?: number;
-  extra_description?: string | null;
 }
 export interface ExportItem {
   tracking_number: string | null;
@@ -20,6 +18,7 @@ export interface ExportItem {
   order_value: number;
   fee_amount: number;
   fee_type: string | null;
+  description?: string | null;
 }
 
 const downloadBlob = (content: BlobPart, filename: string, mime: string) => {
@@ -39,55 +38,79 @@ const csvEscape = (v: any) => {
   return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
+const splitItems = (items: ExportItem[]) => ({
+  orders: items.filter((i) => i.fee_type !== "extra"),
+  extras: items.filter((i) => i.fee_type === "extra"),
+});
+
 export const exportInvoiceCsv = (inv: ExportInvoice, items: ExportItem[]) => {
+  const { orders, extras } = splitItems(items);
   const headers = ["Tracking", "Produit", "Ville", "Statut", "Type tarif", "Prix", "Tarif"];
-  const rows = items.map((i) => [
+  const rows = orders.map((i) => [
     i.tracking_number, i.product_name, i.customer_city, i.status_snapshot,
     i.fee_type, Number(i.order_value).toFixed(2), Number(i.fee_amount).toFixed(2),
   ]);
-  const totalCod = items.filter((i) => i.fee_type === "livraison").reduce((a, i) => a + Number(i.order_value || 0), 0);
-  const totalFees = items.reduce((a, i) => a + Number(i.fee_amount || 0), 0);
+  const extraRows = extras.map((i) => [
+    "", i.description || i.product_name || "Autre tarif", "", "Autre tarif",
+    "extra", "", Number(i.fee_amount).toFixed(2),
+  ]);
+  const totalCod = orders.filter((i) => i.fee_type === "livraison").reduce((a, i) => a + Number(i.order_value || 0), 0);
+  const totalFees = orders.reduce((a, i) => a + Number(i.fee_amount || 0), 0);
+  const totalExtras = extras.reduce((a, i) => a + Number(i.fee_amount || 0), 0);
   const meta = [
     [`Facture #${inv.id}`],
     [`${inv.recipientType === "vendeur" ? "Vendeur" : "Livreur"}`, inv.recipientName],
     ["Statut", inv.status],
-    ["Commandes", String(items.length)],
     ["COD", totalCod.toFixed(2)],
+    ["Commandes", String(orders.length)],
     ["Tarif", totalFees.toFixed(2)],
-    ["Autre tarif", Number(inv.extra_amount || 0).toFixed(2) + (inv.extra_description ? ` (${inv.extra_description})` : "")],
+    ["Autre tarif", totalExtras.toFixed(2)],
     ["Reste", Number(inv.net_amount).toFixed(2)],
     [],
   ];
-  const all = [...meta, headers, ...rows];
+  const all = [...meta, headers, ...rows, ...extraRows];
   const csv = "\uFEFF" + all.map((r) => r.map(csvEscape).join(",")).join("\n");
   downloadBlob(csv, `facture-${inv.id}.csv`, "text/csv;charset=utf-8");
 };
 
 export const exportInvoicePdf = (inv: ExportInvoice, items: ExportItem[]) => {
   const doc = new jsPDF();
-  const totalCod = items.filter((i) => i.fee_type === "livraison").reduce((a, i) => a + Number(i.order_value || 0), 0);
-  const totalFees = items.reduce((a, i) => a + Number(i.fee_amount || 0), 0);
+  const { orders, extras } = splitItems(items);
+  const totalCod = orders.filter((i) => i.fee_type === "livraison").reduce((a, i) => a + Number(i.order_value || 0), 0);
+  const totalFees = orders.reduce((a, i) => a + Number(i.fee_amount || 0), 0);
+  const totalExtras = extras.reduce((a, i) => a + Number(i.fee_amount || 0), 0);
   doc.setFontSize(16);
   doc.text(`Facture #${inv.id}`, 14, 18);
   doc.setFontSize(11);
   doc.text(`${inv.recipientType === "vendeur" ? "Vendeur" : "Livreur"} : ${inv.recipientName}`, 14, 28);
   doc.text(`Statut : ${inv.status}`, 14, 35);
-  doc.text(`Commandes : ${items.length}   COD : ${totalCod.toFixed(2)}`, 14, 42);
-  doc.text(`Tarif : ${totalFees.toFixed(2)}   Autre tarif : ${Number(inv.extra_amount || 0).toFixed(2)}${inv.extra_description ? ` (${inv.extra_description})` : ""}`, 14, 49);
+  doc.text(`COD : ${totalCod.toFixed(2)}   Commandes : ${orders.length}`, 14, 42);
+  doc.text(`Tarif : ${totalFees.toFixed(2)}   Autre tarif : ${totalExtras.toFixed(2)}`, 14, 49);
   doc.text(`Reste : ${Number(inv.net_amount).toFixed(2)}`, 14, 56);
 
   autoTable(doc, {
     startY: 62,
-    head: [["Tracking", "Produit", "Ville", "Statut", "Type", "Prix", "Tarif"]],
-    body: items.map((i) => [
-      i.tracking_number ?? "—",
-      i.product_name ?? "—",
-      i.customer_city ?? "—",
-      i.status_snapshot ?? "—",
-      i.fee_type ?? "—",
-      Number(i.order_value).toFixed(2),
-      Number(i.fee_amount).toFixed(2),
-    ]),
+    head: [["Tracking", "Produit / Description", "Ville", "Statut", "Type", "Prix", "Tarif"]],
+    body: [
+      ...orders.map((i) => [
+        i.tracking_number ?? "—",
+        i.product_name ?? "—",
+        i.customer_city ?? "—",
+        i.status_snapshot ?? "—",
+        i.fee_type ?? "—",
+        Number(i.order_value).toFixed(2),
+        Number(i.fee_amount).toFixed(2),
+      ]),
+      ...extras.map((i) => [
+        "—",
+        i.description || i.product_name || "Autre tarif",
+        "—",
+        "Autre tarif",
+        "extra",
+        "—",
+        Number(i.fee_amount).toFixed(2),
+      ]),
+    ],
     styles: { fontSize: 9 },
     headStyles: { fillColor: [40, 40, 40] },
   });

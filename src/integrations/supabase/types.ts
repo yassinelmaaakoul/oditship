@@ -149,6 +149,7 @@ export type Database = {
       invoice_items: {
         Row: {
           customer_city: string | null
+          description: string | null
           fee_amount: number
           fee_type: string | null
           id: number
@@ -161,6 +162,7 @@ export type Database = {
         }
         Insert: {
           customer_city?: string | null
+          description?: string | null
           fee_amount?: number
           fee_type?: string | null
           id?: number
@@ -173,6 +175,7 @@ export type Database = {
         }
         Update: {
           customer_city?: string | null
+          description?: string | null
           fee_amount?: number
           fee_type?: string | null
           id?: number

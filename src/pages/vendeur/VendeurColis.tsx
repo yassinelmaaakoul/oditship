@@ -339,8 +339,10 @@ const VendeurColis = () => {
                 <TableCell className="font-mono text-sm">{o.customer_phone}</TableCell>
                 <TableCell className="font-semibold">{Number(o.order_value).toFixed(2)} MAD</TableCell>
                 <TableCell>
-                  <StatusBadge status={o.status} />
-                  <OrderBillingBadges status={o.status} info={billingMap[o.id]} />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={o.status} />
+                    <OrderBillingBadges status={o.status} info={billingMap[o.id]} />
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">

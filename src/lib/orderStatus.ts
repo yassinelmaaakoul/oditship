@@ -32,6 +32,8 @@ export const statusColor = (s: string): StatusStyle => {
     case "ASSIGN":    return { bg: "bg-purple-100",   text: "text-purple-700",  ring: "ring-purple-200",   hex: "hsl(270 91% 65%)" };
     case "whatsapp":  return { bg: "bg-green-100",    text: "text-green-700",   ring: "ring-green-200",    hex: "hsl(142 76% 36%)" };
     case "Appel sortant": return { bg: "bg-teal-100", text: "text-teal-700",    ring: "ring-teal-200",     hex: "hsl(173 80% 40%)" };
+    case "Facturé":   return { bg: "bg-amber-100",    text: "text-amber-700",   ring: "ring-amber-200",    hex: "hsl(38 92% 50%)" };
+    case "Payée":     return { bg: "bg-emerald-100",  text: "text-emerald-700", ring: "ring-emerald-200",  hex: "hsl(160 84% 39%)" };
     default:          return { bg: "bg-gray-100",     text: "text-gray-700",    ring: "ring-gray-200",     hex: "hsl(220 9% 50%)" };
   }
 };
