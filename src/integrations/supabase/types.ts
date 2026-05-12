@@ -874,6 +874,7 @@ export type Database = {
           agent_pages: Json | null
           api_enabled: boolean
           api_token: string | null
+          auto_invoice_config: Json | null
           bank_account_name: string | null
           bank_account_number: string | null
           cin: string | null
@@ -894,6 +895,7 @@ export type Database = {
           agent_pages?: Json | null
           api_enabled?: boolean
           api_token?: string | null
+          auto_invoice_config?: Json | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           cin?: string | null
@@ -914,6 +916,7 @@ export type Database = {
           agent_pages?: Json | null
           api_enabled?: boolean
           api_token?: string | null
+          auto_invoice_config?: Json | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           cin?: string | null
