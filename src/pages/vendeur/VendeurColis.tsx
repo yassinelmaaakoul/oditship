@@ -12,6 +12,8 @@ import { ORDER_STATUSES } from "@/lib/orderStatus";
 import { OrderFormDialog, OrderFormValues } from "@/components/dashboard/OrderFormDialog";
 import { OrderDetailsPanel } from "@/components/dashboard/OrderDetailsPanel";
 import { ColisMainRowCell } from "@/components/dashboard/ColisMainRowCell";
+import { OrderBillingBadges } from "@/components/dashboard/OrderBillingBadges";
+import { useInvoiceStatusMap } from "@/lib/useInvoiceStatusMap";
 import { printSticker, printStickers } from "@/lib/printSticker";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Pencil, Trash2, Printer, Plus, Search, CheckCircle2, PackageCheck, Loader2, X } from "lucide-react";
@@ -127,6 +129,8 @@ const VendeurColis = () => {
       return tb - ta;
     });
   }, [orders, statusFilter, agentFilter, dateFrom, dateTo, search]);
+
+  const billingMap = useInvoiceStatusMap(filtered.map((o) => o.id));
 
   const selectedOrders = useMemo(() => orders.filter((o) => selected.has(o.id)), [orders, selected]);
   const eligibleConfirm = selectedOrders.filter((o) => o.status === "Crée");
@@ -336,6 +340,7 @@ const VendeurColis = () => {
                 <TableCell className="font-semibold">{Number(o.order_value).toFixed(2)} MAD</TableCell>
                 <TableCell>
                   <StatusBadge status={o.status} />
+                  <OrderBillingBadges status={o.status} info={billingMap[o.id]} />
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">

@@ -202,32 +202,44 @@ export type Database = {
       }
       invoice_schedules: {
         Row: {
+          days_of_week: number[]
           enabled: boolean
           frequency_days: number
+          hour: number
           id: number
           last_run_at: string | null
+          minute: number
           next_run_at: string | null
           recipient_type: string
+          schedule_mode: string
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          days_of_week?: number[]
           enabled?: boolean
           frequency_days?: number
+          hour?: number
           id?: number
           last_run_at?: string | null
+          minute?: number
           next_run_at?: string | null
           recipient_type: string
+          schedule_mode?: string
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          days_of_week?: number[]
           enabled?: boolean
           frequency_days?: number
+          hour?: number
           id?: number
           last_run_at?: string | null
+          minute?: number
           next_run_at?: string | null
           recipient_type?: string
+          schedule_mode?: string
           updated_at?: string
           updated_by?: string | null
         }

@@ -4,7 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Receipt } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Receipt, FileText, FileSpreadsheet } from "lucide-react";
+import { exportInvoiceCsv, exportInvoicePdf } from "@/lib/invoiceExport";
+import { useAuth } from "@/contexts/AuthContext";
 
 const db = supabase as any;
 
@@ -12,6 +15,7 @@ interface Invoice { id: number; period_start: string; period_end: string; net_am
 interface Item { id: number; tracking_number: string | null; product_name: string | null; customer_city: string | null; status_snapshot: string | null; order_value: number; fee_amount: number; }
 
 const VendeurFacturation = () => {
+  const { profile } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [open, setOpen] = useState<Invoice | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -26,6 +30,20 @@ const VendeurFacturation = () => {
     db.from("invoice_items").select("*").eq("invoice_id", open.id).order("id")
       .then(({ data }: any) => setItems((data ?? []) as Item[]));
   }, [open]);
+
+  const exportInvoice = async (inv: Invoice, fmt: "pdf" | "csv") => {
+    const { data: its } = await db.from("invoice_items").select("*").eq("invoice_id", inv.id).order("id");
+    const data = {
+      id: inv.id,
+      recipientName: profile?.full_name || profile?.username || "—",
+      recipientType: "vendeur" as const,
+      period_start: inv.period_start,
+      period_end: inv.period_end,
+      net_amount: inv.net_amount,
+      status: inv.status,
+    };
+    fmt === "pdf" ? exportInvoicePdf(data, (its ?? []) as any) : exportInvoiceCsv(data, (its ?? []) as any);
+  };
 
   return (
     <div className="space-y-4">
@@ -42,11 +60,12 @@ const VendeurFacturation = () => {
               <TableHead>Montant net</TableHead>
               <TableHead>Statut</TableHead>
               <TableHead>Créée</TableHead>
+              <TableHead className="text-right">Export</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {invoices.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucune facture</TableCell></TableRow>
             ) : invoices.map((inv) => (
               <TableRow key={inv.id} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpen(inv)}>
                 <TableCell>{inv.period_start} → {inv.period_end}</TableCell>
@@ -57,6 +76,10 @@ const VendeurFacturation = () => {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</TableCell>
+                <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="ghost" title="PDF" onClick={() => exportInvoice(inv, "pdf")}><FileText className="h-4 w-4" /></Button>
+                  <Button size="sm" variant="ghost" title="CSV" onClick={() => exportInvoice(inv, "csv")}><FileSpreadsheet className="h-4 w-4" /></Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

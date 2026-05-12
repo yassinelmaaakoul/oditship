@@ -1,108 +1,61 @@
+# Refonte de la facturation
 
-# Refonte du système de tarification
+## 1. Génération basée sur les commandes (au lieu d'une période)
 
-## Objectif
-Passer d'un tarif unique par ville (table `pricing_rules`) vers un système de **packs tarifaires** réutilisables, croisant **ville de ramassage** et **ville de destination**, avec délai de livraison, et permettant des **tarifs personnalisés** par vendeur ou par livreur.
+**Logique :** une commande est "facturable" si son statut est Livré / Refusé / Annulé **et** qu'elle n'apparaît dans aucune `invoice_items.order_id`.
 
----
+**UI "Générer une facture" (livreur & vendeur) :**
+- Suppression des champs date début / date fin
+- Liste déroulante des destinataires affichant : `Nom — N commandes en attente`
+- Option `Tous` toujours présente, montrant le total global agrégé
+- Bouton génère : crée une facture par destinataire avec toutes ses commandes en attente
 
-## 1. Schéma base de données (migration)
+**Code :** `invoiceGenerator.ts` reçoit `targetId?` et calcule depuis les commandes non facturées (left join sur `invoice_items`). `period_start`/`period_end` deviennent la min/max `updated_at` des commandes incluses (toujours stockés pour info).
 
-### Nouvelles tables
+## 2. Génération automatique avancée
 
-**`pickup_cities`** – villes d'où partent les ramassages
-- `name` (unique)
+**Schéma `invoice_schedules` (migration) — ajouter :**
+- `schedule_mode text` ('daily' | 'weekly')
+- `days_of_week int[]` (0=dim … 6=sam, utilisé si weekly)
+- `hour int` (0–23)
+- `minute int` (0–59)
 
-**`pricing_packs`** – packs réutilisables (Frais livraison / refus / annulation + délai)
-- `name`, `delivery_fee`, `refusal_fee`, `annulation_fee`, `delivery_delay_hours`, `scope` (`global` | `vendeur` | `livreur`), `owner_id` (nullable, vendeur ou livreur)
+**UI Admin :**
+- Toggle activé
+- Mode : Daily / Jours spécifiques (cases à cocher Lun–Dim)
+- Time picker (heure + minute)
+- Plus de champ "tous les N jours"
 
-**`pricing_pack_links`** – lie un pack à des couples (ville de ramassage × ville de destination)
-- `pack_id`, `pickup_city`, `destination_city`
-- Index unique composite, permet "toutes les villes" via wildcard `*`
+**Exécution :** la même logique d'auto-gen exploite désormais "toutes les commandes en attente" (équivalent à `Tous`).
 
-### RLS
-- `pickup_cities` / `pricing_packs` / `pricing_pack_links`: lecture par tous authentifiés, écriture admin uniquement
-- Vendeurs/livreurs voient leurs propres packs
+## 3. Sous-statuts à côté du statut principal
 
-### Migration des données
-- Convertir les `pricing_rules` actuelles (vendeur_id NULL) en un pack global "Standard" lié à toutes les villes
+**Affichage commandes (cellule statut, table `orders`) :**
+- Statut principal (Livré/Refusé/Annulé/…) inchangé
+- Si statut ∈ {Livré, Refusé, Annulé} **et** rôle = vendeur context :
+  - Badge `Facturé` / `Non facturé` (présence dans `invoice_items` rattachée à une `invoices` `recipient_type='vendeur'`)
+  - Badge `Payée` / `Non payée` (statut de l'invoice)
 
----
+Implémenté dans `ColisMainRowCell.tsx` via une requête légère qui charge la map `order_id → {invoiced, paid}` au montage de la liste.
 
-## 2. Nouvelle entrée Paramètres: "Tarifs & Délai Livraison"
+## 4. Export PDF + CSV
 
-Nouvel onglet dans `AdminParametres.tsx` avec 3 sous-sections:
+Bouton sur chaque ligne facture (et dans le détail) :
+- **CSV** : génération côté client à partir de `invoice_items` (Papa-style join, pas de dépendance — concat manuel)
+- **PDF** : `jspdf` + `jspdf-autotable` (à ajouter), template simple avec en-tête destinataire, période, lignes, total
 
-### a) Villes de ramassage
-- CRUD simple (comme `AdminCities`)
+## Fichiers touchés
+- `supabase/migrations/...sql` — colonnes `invoice_schedules` + index `invoice_items(order_id)`
+- `src/lib/invoiceGenerator.ts` — refactor sur commandes non facturées
+- `src/lib/invoiceExport.ts` — nouveau (CSV + PDF helpers)
+- `src/pages/admin/AdminFacturation.tsx` — nouveau sélecteur, nouveau bloc planification, boutons export
+- `src/pages/vendeur/VendeurFacturation.tsx` — boutons export
+- `src/components/dashboard/ColisMainRowCell.tsx` — sous-badges
+- (optionnel) edge function `auto-invoice-runner` non incluse ici — le scheduling DB est posé, l'exécution réelle peut être branchée ensuite
 
-### b) Packs tarifaires
-- Créer/éditer un pack: nom, 3 frais, délai (heures/jours)
-- Bouton "Lier à des villes":
-  - Sélection ville de ramassage (ou *Toutes*)
-  - Multi-select villes destination + checkbox **"Toutes les villes"**
-- Liste des liens existants par pack
-
-### c) (la liste des règles courantes reste dans `AdminCities` pour compat, mais les frais sont gérés via packs)
-
----
-
-## 3. Page publique `/pricing`
-
-- Ajouter un **`<Select>` "Filtrer par ville de ramassage"** en tête de tableau
-- Le tableau affiche pour chaque ville destination: frais livraison / refus / annulation + **délai**
-- Données calculées via résolution: pack global lié au couple (ramassage, destination)
-
----
-
-## 4. Tarifs personnalisés Vendeur
-
-Dans `AdminUtilisateurs.tsx` (panneau d'édition d'un vendeur):
-- Toggle **"Tarif personnalisé"**
-- Si activé: éditeur inline (mêmes 3 champs frais)
-- Bouton "Appliquer aux villes": multi-select destinations + checkbox "Toutes les villes"
-- Sauvegarde comme `pricing_pack` scope=`vendeur`, owner=vendeur_id, lié aux villes choisies
-
-Au calcul des factures: si pack vendeur existe pour une ville → prioritaire sur global.
-
----
-
-## 5. Tarifs personnalisés Livreur
-
-Nouvelle section dans `AdminLivreurs.tsx` (onglet Livreurs & API):
-- Bouton "Tarifs" par livreur ouvrant un dialog
-- Champs: 3 frais
-- Multi-select villes **filtré par les hubs assignés au livreur** (via `hub_cities`)
-- Checkbox "Toutes les villes des hubs"
-- Sauvegarde pack scope=`livreur`, owner=livreur_id
-
----
-
-## 6. Résolution des prix (helper partagé)
-
-Nouveau `src/lib/pricingResolver.ts`:
-```
-resolvePrice({ pickupCity, destCity, vendeurId?, livreurId? })
-  → { delivery_fee, refusal_fee, annulation_fee, delay }
-Priorité: livreur > vendeur > global
-```
-Utilisé par: `/pricing`, futures factures, affichage commande.
-
----
-
-## Détails techniques
-
-- Tables avec RLS, triggers `updated_at`
-- Wildcard `*` pour "toutes les villes" dans `pricing_pack_links` évite explosion de lignes
-- Frontend: composants réutilisables `PackEditor`, `CityLinker`
-- Pas de breaking change sur `pricing_rules` (gardée comme legacy fallback le temps de la migration UI)
-
----
-
-## Hors scope (à confirmer plus tard)
-- Recalcul rétroactif des factures déjà émises
-- Application automatique du nouveau délai aux commandes en cours
-
----
-
-Approuvez ce plan pour que je lance la migration DB puis l'implémentation UI.
+## Ordre d'exécution
+1. Migration schéma `invoice_schedules`
+2. Refactor générateur + UI génération
+3. Nouvelle UI scheduling
+4. Sous-badges statut
+5. Export PDF/CSV (ajout dépendance `jspdf` + `jspdf-autotable`)
