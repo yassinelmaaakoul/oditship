@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Receipt, Timer, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Receipt, Timer, Plus, Pencil, Trash2, Check, X, FileText, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
-import { generateInvoices } from "@/lib/invoiceGenerator";
+import { generateInvoices, fetchUnbilledCounts } from "@/lib/invoiceGenerator";
+import { exportInvoiceCsv, exportInvoicePdf } from "@/lib/invoiceExport";
 
 const db = supabase as any;
 
@@ -28,7 +31,6 @@ interface Invoice {
   created_at: string;
   paid_at: string | null;
 }
-
 interface Item {
   id: number;
   invoice_id: number;
@@ -41,33 +43,49 @@ interface Item {
   fee_amount: number;
   fee_type: string | null;
 }
-
 interface Profile { id: string; username: string; full_name: string | null; }
-interface Schedule { id: number; recipient_type: "vendeur" | "livreur"; enabled: boolean; frequency_days: number; last_run_at: string | null; next_run_at: string | null; }
+interface Schedule {
+  id: number;
+  recipient_type: "vendeur" | "livreur";
+  enabled: boolean;
+  schedule_mode: "daily" | "weekly";
+  days_of_week: number[];
+  hour: number;
+  minute: number;
+  last_run_at: string | null;
+  next_run_at: string | null;
+}
 
-const todayStr = (d = new Date()) => d.toISOString().slice(0, 10);
-const daysAgoStr = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return todayStr(d); };
+const DAYS = [
+  { v: 1, l: "Lun" }, { v: 2, l: "Mar" }, { v: 3, l: "Mer" },
+  { v: 4, l: "Jeu" }, { v: 5, l: "Ven" }, { v: 6, l: "Sam" }, { v: 0, l: "Dim" },
+];
 
 const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
+  const [counts, setCounts] = useState<Map<string, number>>(new Map());
+  const [totalUnbilled, setTotalUnbilled] = useState(0);
   const [genOpen, setGenOpen] = useState(false);
-  const [gen, setGen] = useState({ targetId: "all", periodStart: daysAgoStr(30), periodEnd: todayStr() });
+  const [genTarget, setGenTarget] = useState<string>("all");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Invoice | null>(null);
 
   const load = async () => {
-    const [inv, p, s] = await Promise.all([
+    const [inv, p, s, c] = await Promise.all([
       db.from("invoices").select("*").eq("recipient_type", type).order("created_at", { ascending: false }),
       db.from("profiles").select("id, username, full_name").eq("role", type).order("username"),
       db.from("invoice_schedules").select("*").eq("recipient_type", type).maybeSingle(),
+      fetchUnbilledCounts(type),
     ]);
     setInvoices((inv.data ?? []) as Invoice[]);
     setProfiles((p.data ?? []) as Profile[]);
     setSchedule((s.data ?? null) as Schedule | null);
+    setCounts(c.counts);
+    setTotalUnbilled(c.total);
   };
-  useEffect(() => { load(); }, [type]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [type]);
 
   const profileName = (id: string | null) => {
     const p = profiles.find((x) => x.id === id);
@@ -79,16 +97,13 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
     try {
       const r = await generateInvoices({
         recipientType: type,
-        targetId: gen.targetId === "all" ? undefined : gen.targetId,
-        periodStart: gen.periodStart,
-        periodEnd: gen.periodEnd,
+        targetId: genTarget === "all" ? undefined : genTarget,
       });
       toast.success(`${r.created} facture(s) générée(s)`);
       setGenOpen(false);
       load();
-    } catch (e: any) {
-      toast.error(e.message || "Erreur");
-    } finally { setBusy(false); }
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setBusy(false); }
   };
 
   const togglePaid = async (inv: Invoice) => {
@@ -111,48 +126,110 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
   const saveSchedule = async (patch: Partial<Schedule>) => {
     if (!schedule) return;
     const next = { ...schedule, ...patch };
-    if (patch.enabled === true && !next.next_run_at) {
-      const d = new Date(); d.setDate(d.getDate() + next.frequency_days);
-      next.next_run_at = d.toISOString();
-    }
     const { error } = await db.from("invoice_schedules").update({
       enabled: next.enabled,
-      frequency_days: next.frequency_days,
-      next_run_at: next.next_run_at,
+      schedule_mode: next.schedule_mode,
+      days_of_week: next.days_of_week,
+      hour: next.hour,
+      minute: next.minute,
     }).eq("id", schedule.id);
     if (error) return toast.error(error.message);
     setSchedule(next);
-    toast.success("Planification mise à jour");
+  };
+
+  const exportInvoice = async (inv: Invoice, fmt: "pdf" | "csv") => {
+    const { data: its } = await db.from("invoice_items").select("*").eq("invoice_id", inv.id).order("id");
+    const exportData = {
+      id: inv.id,
+      recipientName: profileName(type === "vendeur" ? inv.vendeur_id : inv.livreur_id),
+      recipientType: type,
+      period_start: inv.period_start,
+      period_end: inv.period_end,
+      net_amount: inv.net_amount,
+      status: inv.status,
+    };
+    const items = (its ?? []) as Item[];
+    fmt === "pdf" ? exportInvoicePdf(exportData, items) : exportInvoiceCsv(exportData, items);
+  };
+
+  const targetLabel = (id: string) => {
+    const p = profiles.find((x) => x.id === id);
+    const name = p ? (p.full_name || p.username) : id;
+    return `${name} — ${counts.get(id) ?? 0} commande(s)`;
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => setGenOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Générer une facture
-        </Button>
+      <div className="grid lg:grid-cols-2 gap-3">
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground">Commandes en attente de facturation</div>
+                <div className="text-2xl font-bold">{totalUnbilled}</div>
+              </div>
+              <Button onClick={() => setGenOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Générer une facture
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-        <Card className="flex-1 min-w-[280px]">
-          <CardContent className="p-3 flex flex-wrap items-center gap-3 text-sm">
-            <Timer className="h-4 w-4 text-primary" />
-            <span className="font-medium">Génération automatique</span>
-            <Switch
-              checked={schedule?.enabled ?? false}
-              onCheckedChange={(v) => saveSchedule({ enabled: v })}
-            />
-            <span className="text-muted-foreground">tous les</span>
-            <Input
-              type="number"
-              min={1}
-              className="h-8 w-20"
-              value={schedule?.frequency_days ?? 30}
-              onChange={(e) => saveSchedule({ frequency_days: Number(e.target.value) })}
-            />
-            <span className="text-muted-foreground">jours</span>
-            {schedule?.next_run_at && schedule.enabled && (
-              <Badge variant="secondary" className="ml-auto">
-                Prochain run : {new Date(schedule.next_run_at).toLocaleString()}
-              </Badge>
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Timer className="h-4 w-4 text-primary" />
+              <span className="font-medium">Génération automatique</span>
+              <Switch
+                className="ml-auto"
+                checked={schedule?.enabled ?? false}
+                onCheckedChange={(v) => saveSchedule({ enabled: v })}
+              />
+            </div>
+            {schedule && (
+              <>
+                <RadioGroup
+                  className="flex gap-4"
+                  value={schedule.schedule_mode}
+                  onValueChange={(v) => saveSchedule({ schedule_mode: v as any })}
+                >
+                  <label className="flex items-center gap-2 text-sm">
+                    <RadioGroupItem value="daily" /> Tous les jours
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <RadioGroupItem value="weekly" /> Jours spécifiques
+                  </label>
+                </RadioGroup>
+                {schedule.schedule_mode === "weekly" && (
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS.map((d) => {
+                      const checked = schedule.days_of_week.includes(d.v);
+                      return (
+                        <label key={d.v} className="flex items-center gap-1 text-sm border rounded px-2 py-1 cursor-pointer">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(c) => {
+                              const next = c
+                                ? [...schedule.days_of_week, d.v]
+                                : schedule.days_of_week.filter((x) => x !== d.v);
+                              saveSchedule({ days_of_week: next });
+                            }}
+                          />
+                          {d.l}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-sm">
+                  <span>Heure :</span>
+                  <Input type="number" min={0} max={23} className="h-8 w-16" value={schedule.hour}
+                    onChange={(e) => saveSchedule({ hour: Math.max(0, Math.min(23, Number(e.target.value))) })} />
+                  <span>:</span>
+                  <Input type="number" min={0} max={59} className="h-8 w-16" value={schedule.minute}
+                    onChange={(e) => saveSchedule({ minute: Math.max(0, Math.min(59, Number(e.target.value))) })} />
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -164,7 +241,7 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
             <TableRow>
               <TableHead>{type === "vendeur" ? "Vendeur" : "Livreur"}</TableHead>
               <TableHead>Période</TableHead>
-              <TableHead>Montant net</TableHead>
+              <TableHead>Net</TableHead>
               <TableHead>Statut</TableHead>
               <TableHead>Créée</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -184,7 +261,9 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="sm" title="PDF" onClick={() => exportInvoice(inv, "pdf")}><FileText className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" title="CSV" onClick={() => exportInvoice(inv, "csv")}><FileSpreadsheet className="h-4 w-4" /></Button>
                   <Button variant="ghost" size="sm" onClick={() => togglePaid(inv)}>
                     {inv.status === "paid" ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
                   </Button>
@@ -205,41 +284,42 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
           <div className="space-y-3">
             <div>
               <Label>{type === "vendeur" ? "Vendeur" : "Livreur"}</Label>
-              <Select value={gen.targetId} onValueChange={(v) => setGen({ ...gen, targetId: v })}>
+              <Select value={genTarget} onValueChange={setGenTarget}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name || p.username}</SelectItem>)}
+                  <SelectItem value="all">Tous — {totalUnbilled} commande(s)</SelectItem>
+                  {profiles
+                    .filter((p) => (counts.get(p.id) ?? 0) > 0)
+                    .map((p) => <SelectItem key={p.id} value={p.id}>{targetLabel(p.id)}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Période — début</Label><Input type="date" value={gen.periodStart} onChange={(e) => setGen({ ...gen, periodStart: e.target.value })} /></div>
-              <div><Label>Période — fin</Label><Input type="date" value={gen.periodEnd} onChange={(e) => setGen({ ...gen, periodEnd: e.target.value })} /></div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Seules les commandes Livré / Refusé / Annulé non encore facturées sont incluses.
+              </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setGenOpen(false)}>Annuler</Button>
-            <Button onClick={generate} disabled={busy}>{busy ? "..." : "Générer"}</Button>
+            <Button onClick={generate} disabled={busy || totalUnbilled === 0}>{busy ? "..." : "Générer"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Detail dialog */}
-      <InvoiceDetail invoice={open} onClose={() => { setOpen(null); load(); }} recipientName={open ? profileName(type === "vendeur" ? open.vendeur_id : open.livreur_id) : ""} />
+      <InvoiceDetail invoice={open} onClose={() => { setOpen(null); load(); }} recipientName={open ? profileName(type === "vendeur" ? open.vendeur_id : open.livreur_id) : ""} onExport={exportInvoice} />
     </div>
   );
 };
 
-const InvoiceDetail = ({ invoice, onClose, recipientName }: { invoice: Invoice | null; onClose: () => void; recipientName: string }) => {
+const InvoiceDetail = ({ invoice, onClose, recipientName, onExport }: { invoice: Invoice | null; onClose: () => void; recipientName: string; onExport: (inv: Invoice, fmt: "pdf" | "csv") => void }) => {
   const [items, setItems] = useState<Item[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState<Partial<Item>>({});
 
-  useEffect(() => {
+  const reload = () => {
     if (!invoice) return;
     db.from("invoice_items").select("*").eq("invoice_id", invoice.id).order("id").then(({ data }: any) => setItems((data ?? []) as Item[]));
-  }, [invoice]);
+  };
+  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [invoice]);
 
   const startEdit = (it: Item) => { setEditing(it.id); setDraft({ ...it }); };
   const saveEdit = async () => {
@@ -254,14 +334,22 @@ const InvoiceDetail = ({ invoice, onClose, recipientName }: { invoice: Invoice |
     if (error) return toast.error(error.message);
     toast.success("Ligne mise à jour");
     setEditing(null);
-    if (invoice) db.from("invoice_items").select("*").eq("invoice_id", invoice.id).order("id").then(({ data }: any) => setItems((data ?? []) as Item[]));
+    reload();
   };
 
   return (
     <Dialog open={!!invoice} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Facture #{invoice?.id} — {recipientName}</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Facture #{invoice?.id} — {recipientName}</span>
+            {invoice && (
+              <div className="flex gap-1">
+                <Button size="sm" variant="outline" onClick={() => onExport(invoice, "pdf")}><FileText className="h-4 w-4 mr-1" />PDF</Button>
+                <Button size="sm" variant="outline" onClick={() => onExport(invoice, "csv")}><FileSpreadsheet className="h-4 w-4 mr-1" />CSV</Button>
+              </div>
+            )}
+          </DialogTitle>
         </DialogHeader>
         <div className="text-sm text-muted-foreground mb-2">
           {invoice?.period_start} → {invoice?.period_end} · Net : <strong>{Number(invoice?.net_amount || 0).toFixed(2)}</strong>
@@ -269,13 +357,8 @@ const InvoiceDetail = ({ invoice, onClose, recipientName }: { invoice: Invoice |
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tracking</TableHead>
-              <TableHead>Produit</TableHead>
-              <TableHead>Ville</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead>Prix</TableHead>
-              <TableHead>Tarif</TableHead>
-              <TableHead></TableHead>
+              <TableHead>Tracking</TableHead><TableHead>Produit</TableHead><TableHead>Ville</TableHead>
+              <TableHead>Statut</TableHead><TableHead>Prix</TableHead><TableHead>Tarif</TableHead><TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
