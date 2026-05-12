@@ -130,8 +130,9 @@ const AdminLivreurs = () => {
       supabase.functions.invoke("admin-update-user", { body: { user_id: l.id, get_email: true } }),
     ]);
     if (emailRes.error) toast.error(emailRes.error.message || "Impossible de charger l'email");
-    const info = (emailRes.data as any) ?? {};
-    setEditForm((f) => ({ ...f, phone: (prof as any)?.phone ?? "", email: info.email ?? "", current_password: info.current_password ?? "" }));
+    const info = (emailRes.data as { email?: string; current_password?: string } | null) ?? {};
+    const profileInfo = prof as { phone?: string | null } | null;
+    setEditForm((f) => ({ ...f, phone: profileInfo?.phone ?? "", email: info.email ?? "", current_password: info.current_password ?? "" }));
   };
 
   const submitEdit = async () => {
