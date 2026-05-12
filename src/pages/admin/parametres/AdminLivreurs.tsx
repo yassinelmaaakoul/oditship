@@ -122,6 +122,40 @@ const AdminLivreurs = () => {
     } catch (e: any) { toast.error(e.message || "Erreur"); }
   };
 
+  const openEdit = async (l: Livreur) => {
+    setEditTarget(l);
+    setEditForm({ full_name: l.full_name || "", phone: "", email: "", password: "" });
+    const [{ data: prof }, emailRes] = await Promise.all([
+      db.from("profiles").select("phone").eq("id", l.id).maybeSingle(),
+      supabase.functions.invoke("admin-update-user", { body: { user_id: l.id, get_email: true } }),
+    ]);
+    setEditForm((f) => ({ ...f, phone: (prof as any)?.phone ?? "", email: (emailRes.data as any)?.email ?? "" }));
+  };
+
+  const submitEdit = async () => {
+    if (!editTarget) return;
+    setEditBusy(true);
+    try {
+      const payload: any = {
+        user_id: editTarget.id,
+        full_name: editForm.full_name || null,
+        phone: editForm.phone || null,
+        username: editTarget.username,
+        role: "livreur",
+        is_active: editTarget.is_active ?? true,
+      };
+      if (editForm.email) payload.email = editForm.email;
+      if (editForm.password) payload.password = editForm.password;
+      const { data, error } = await supabase.functions.invoke("admin-update-user", { body: payload });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Profil mis à jour");
+      setEditTarget(null);
+      load();
+    } catch (e: any) { toast.error(e.message || "Erreur"); }
+    finally { setEditBusy(false); }
+  };
+
   const masked = (t: string | null) => t ? `${t.slice(0, 6)}${"•".repeat(20)}${t.slice(-4)}` : "—";
 
   return (
