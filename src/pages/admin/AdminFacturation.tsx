@@ -93,13 +93,18 @@ const InvoicesTab = ({ type }: { type: "vendeur" | "livreur" }) => {
 
     if (list.length) {
       const ids = list.map((x) => x.id);
-      const { data: its } = await db.from("invoice_items").select("invoice_id, order_value, fee_amount").in("invoice_id", ids);
+      const { data: its } = await db.from("invoice_items").select("invoice_id, order_value, fee_amount, fee_type").in("invoice_id", ids);
       const map: Record<number, InvoiceSummary> = {};
       for (const r of (its ?? []) as any[]) {
-        const cur = map[r.invoice_id] ?? { count: 0, cod: 0, fees: 0 };
-        cur.count += 1;
-        cur.cod += Number(r.order_value || 0);
-        cur.fees += Number(r.fee_amount || 0);
+        const cur = map[r.invoice_id] ?? { count: 0, cod: 0, fees: 0, extras: 0, extrasCount: 0 };
+        if (r.fee_type === "extra") {
+          cur.extras += Number(r.fee_amount || 0);
+          cur.extrasCount += 1;
+        } else {
+          cur.count += 1;
+          cur.cod += Number(r.order_value || 0);
+          cur.fees += Number(r.fee_amount || 0);
+        }
         map[r.invoice_id] = cur;
       }
       setSummary(map);
