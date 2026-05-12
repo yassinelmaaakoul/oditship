@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, UserX, UserCheck, LogIn, Search, Trash2, Wallet } from "lucide-react";
 import PackManager from "@/components/dashboard/PackManager";
+import VendorAutoInvoice from "@/components/dashboard/VendorAutoInvoice";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
