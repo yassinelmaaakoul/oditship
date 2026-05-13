@@ -27,6 +27,7 @@ const AdminHubs = () => {
   const [form, setForm] = useState({ name: "", description: "" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("");
   const [deleting, setDeleting] = useState<Hub | null>(null);
 
   const load = async () => {
@@ -135,7 +136,30 @@ const AdminHubs = () => {
             <div><Label>Description</Label><Textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             <div>
               <Label>Villes assignées ({selected.size})</Label>
-              <Input className="mt-1" placeholder="Filtrer" value={filter} onChange={(e) => setFilter(e.target.value)} />
+              {selected.size > 0 && (
+                <div className="mt-2 border border-border rounded-md p-2 bg-secondary/30">
+                  <Input
+                    placeholder="Rechercher dans les villes sélectionnées"
+                    value={selectedFilter}
+                    onChange={(e) => setSelectedFilter(e.target.value)}
+                  />
+                  <div className="mt-2 max-h-40 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-1">
+                    {Array.from(selected)
+                      .filter((c) => c.toLowerCase().includes(selectedFilter.toLowerCase()))
+                      .sort()
+                      .map((c) => (
+                        <label key={c} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-background rounded px-2 py-1">
+                          <Checkbox checked onCheckedChange={() => toggleCity(c)} />
+                          <span className="truncate flex-1">{c}</span>
+                        </label>
+                      ))}
+                    {Array.from(selected).filter((c) => c.toLowerCase().includes(selectedFilter.toLowerCase())).length === 0 && (
+                      <div className="col-span-full text-xs text-muted-foreground py-2 text-center">Aucune ville sélectionnée ne correspond</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <Input className="mt-2" placeholder="Filtrer toutes les villes" value={filter} onChange={(e) => setFilter(e.target.value)} />
               <div className="mt-2 max-h-64 overflow-y-auto border border-border rounded-md p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
                 {cities.filter((c) => c.name.toLowerCase().includes(filter.toLowerCase())).map((c) => {
                   const owner = cityOwner(c.name);

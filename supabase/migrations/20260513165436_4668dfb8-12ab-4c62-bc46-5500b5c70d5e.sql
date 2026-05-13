@@ -1,0 +1,1 @@
+CREATE POLICY "Ramassoires can view vendeur profiles" ON public.profiles FOR SELECT TO authenticated USING (has_role(auth.uid(), 'ramassoire'::app_role) AND role = 'vendeur');

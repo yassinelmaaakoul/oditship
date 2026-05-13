@@ -40,7 +40,7 @@ const useVendeurs = (vendeurIds: string[]) => {
   const [map, setMap] = useState<Record<string, VendeurInfo>>({});
   useEffect(() => {
     if (vendeurIds.length === 0) { setMap({}); return; }
-    supabase.from("profiles").select("id, username, full_name, company_name")
+    supabase.from("profiles").select("id, username, full_name, company_name, city")
       .in("id", vendeurIds)
       .then(({ data }) => {
         const m: Record<string, VendeurInfo> = {};
@@ -259,7 +259,7 @@ const ListeRamassage = () => {
     const ids = Object.keys(counts);
     setRows(ids.map((id) => ({ vendeur_id: id, count: counts[id] })).sort((a, b) => b.count - a.count));
     if (ids.length > 0) {
-      const { data: profs } = await supabase.from("profiles").select("id, username, full_name, company_name").in("id", ids);
+      const { data: profs } = await supabase.from("profiles").select("id, username, full_name, company_name, city").in("id", ids);
       const m: Record<string, VendeurInfo> = {};
       (profs ?? []).forEach((v: any) => { m[v.id] = v; });
       setVendeurs(m);
@@ -282,21 +282,23 @@ const ListeRamassage = () => {
             <TableRow>
               <TableHead>Vendeur</TableHead>
               <TableHead>Username</TableHead>
+              <TableHead>Ville de ramassage</TableHead>
               <TableHead className="text-right">Colis Pickup</TableHead>
               <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Chargement...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Chargement...</TableCell></TableRow>
             ) : rows.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Aucun vendeur avec colis Pickup</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun vendeur avec colis Pickup</TableCell></TableRow>
             ) : rows.map((r) => {
               const v = vendeurs[r.vendeur_id];
               return (
                 <TableRow key={r.vendeur_id}>
                   <TableCell className="font-medium">{v?.company_name || v?.full_name || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{v?.username || r.vendeur_id.slice(0, 8)}</TableCell>
+                  <TableCell>{(v as any)?.city || "—"}</TableCell>
                   <TableCell className="text-right font-semibold">{r.count}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => navigate("/dashboard/ramassoire/colis")}>
