@@ -27,6 +27,7 @@ const AdminHubs = () => {
   const [form, setForm] = useState({ name: "", description: "" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("");
   const [deleting, setDeleting] = useState<Hub | null>(null);
 
   const load = async () => {
