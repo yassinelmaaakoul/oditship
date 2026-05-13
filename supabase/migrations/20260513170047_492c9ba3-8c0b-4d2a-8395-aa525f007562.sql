@@ -1,0 +1,1 @@
+CREATE POLICY "Ramassoires update Pickup to Ramasse" ON public.orders FOR UPDATE TO authenticated USING (has_role(auth.uid(), 'ramassoire'::app_role) AND status = 'Pickup') WITH CHECK (has_role(auth.uid(), 'ramassoire'::app_role) AND status IN ('Pickup','Ramassé'));
