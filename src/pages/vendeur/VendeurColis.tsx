@@ -225,7 +225,6 @@ const VendeurColis = () => {
         toast.error("Un problème système est survenu. Veuillez contacter le support.");
       }
     }
-    if (success) toast.success(`${success} commande(s) envoyée(s) au livreur`);
     if (failed) toast.error(`${failed} commande(s) en échec`);
     await load();
     setPickingUp(false);
