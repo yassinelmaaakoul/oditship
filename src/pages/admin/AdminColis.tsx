@@ -78,9 +78,12 @@ const AdminColis = () => {
     return m;
   }, [vendeurs]);
 
+  const billingMap = useInvoiceStatusMap(orders.map((o) => o.id));
+
   const filtered = useMemo(() => orders.filter((o) => {
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
     if (vendeurFilter !== "all" && o.vendeur_id !== vendeurFilter) return false;
+    if (!matchesSubStatus(billingMap[o.id], subStatusFilter)) return false;
     if (dateFrom) {
       if (new Date(o.created_at) < new Date(dateFrom)) return false;
     }
@@ -103,9 +106,7 @@ const AdminColis = () => {
     const ta = new Date(a.updated_at || a.created_at).getTime();
     const tb = new Date(b.updated_at || b.created_at).getTime();
     return tb - ta;
-  }), [orders, statusFilter, vendeurFilter, search, dateFrom, dateTo]);
-
-  const billingMap = useInvoiceStatusMap(filtered.map((o) => o.id));
+  }), [orders, statusFilter, vendeurFilter, subStatusFilter, billingMap, search, dateFrom, dateTo]);
 
 
   return (
