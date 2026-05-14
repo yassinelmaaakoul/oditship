@@ -13,6 +13,7 @@ import {
 } from "@/lib/colisCanvas";
 import { useCanvasSurface } from "@/lib/useColisCanvas";
 import { statusColor, statusLabel } from "@/lib/orderStatus";
+import { AdminOrderControls } from "@/components/dashboard/AdminOrderControls";
 
 interface OrderSummary {
   id: number;
@@ -243,32 +244,39 @@ export const OrderDetailsPanel = ({
   const timelineData = useMemo(() => buildTimelineData(timelineItems), [timelineItems]);
 
   return (
-    <div className={cn("grid gap-4 p-4 lg:grid-cols-[1fr_1fr]", className)}>
-      <div>
-        <ScopedCanvas
-          template={detailsTemplate}
-          data={detailsData}
-          scopeClass={`canvas-details-${order.id}`}
-        />
-      </div>
-      <div>
-        {loading && timelineItems.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
-            Chargement de la chronologie…
-          </div>
-        ) : (
+    <div className={cn("p-4", className)}>
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <div>
           <ScopedCanvas
-            template={timelineTemplate}
-            data={timelineData}
-            scopeClass={`canvas-timeline-${order.id}`}
+            template={detailsTemplate}
+            data={detailsData}
+            scopeClass={`canvas-details-${order.id}`}
           />
-        )}
-        {data?.package_error && (
-          <p className="mt-2 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-            Tracking externe indisponible
-          </p>
-        )}
+        </div>
+        <div>
+          {loading && timelineItems.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+              Chargement de la chronologie…
+            </div>
+          ) : (
+            <ScopedCanvas
+              template={timelineTemplate}
+              data={timelineData}
+              scopeClass={`canvas-timeline-${order.id}`}
+            />
+          )}
+          {data?.package_error && (
+            <p className="mt-2 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+              Tracking externe indisponible
+            </p>
+          )}
+        </div>
       </div>
+      <AdminOrderControls
+        orderId={order.id}
+        currentStatus={displayOrder.status}
+        onChanged={load}
+      />
     </div>
   );
 };

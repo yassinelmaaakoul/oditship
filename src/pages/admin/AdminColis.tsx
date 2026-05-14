@@ -9,6 +9,7 @@ import { OrderDetailsPanel } from "@/components/dashboard/OrderDetailsPanel";
 import { ColisMainRowCell } from "@/components/dashboard/ColisMainRowCell";
 import { OrderBillingBadges } from "@/components/dashboard/OrderBillingBadges";
 import { useInvoiceStatusMap } from "@/lib/useInvoiceStatusMap";
+import { SubStatusFilter, matchesSubStatus, type SubStatusValue } from "@/components/dashboard/SubStatusFilter";
 import { ORDER_STATUSES } from "@/lib/orderStatus";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Printer, Search } from "lucide-react";
@@ -46,6 +47,7 @@ const AdminColis = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [subStatusFilter, setSubStatusFilter] = useState<SubStatusValue>("all");
   const [vendeurFilter, setVendeurFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -76,9 +78,12 @@ const AdminColis = () => {
     return m;
   }, [vendeurs]);
 
+  const billingMap = useInvoiceStatusMap(orders.map((o) => o.id));
+
   const filtered = useMemo(() => orders.filter((o) => {
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
     if (vendeurFilter !== "all" && o.vendeur_id !== vendeurFilter) return false;
+    if (!matchesSubStatus(billingMap[o.id], subStatusFilter)) return false;
     if (dateFrom) {
       if (new Date(o.created_at) < new Date(dateFrom)) return false;
     }
@@ -101,9 +106,7 @@ const AdminColis = () => {
     const ta = new Date(a.updated_at || a.created_at).getTime();
     const tb = new Date(b.updated_at || b.created_at).getTime();
     return tb - ta;
-  }), [orders, statusFilter, vendeurFilter, search, dateFrom, dateTo]);
-
-  const billingMap = useInvoiceStatusMap(filtered.map((o) => o.id));
+  }), [orders, statusFilter, vendeurFilter, subStatusFilter, billingMap, search, dateFrom, dateTo]);
 
 
   return (
@@ -111,7 +114,7 @@ const AdminColis = () => {
       <h2 className="text-2xl font-bold">Toutes les commandes</h2>
 
       <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
           <div className="relative lg:col-span-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -128,6 +131,7 @@ const AdminColis = () => {
               {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
+          <SubStatusFilter value={subStatusFilter} onChange={setSubStatusFilter} />
           <Select value={vendeurFilter} onValueChange={setVendeurFilter}>
             <SelectTrigger><SelectValue placeholder="Vendeur" /></SelectTrigger>
             <SelectContent>

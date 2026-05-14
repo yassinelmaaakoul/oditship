@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { OrderBillingBadges } from "@/components/dashboard/OrderBillingBadges";
 import { useInvoiceStatusMap } from "@/lib/useInvoiceStatusMap";
+import { SubStatusFilter, matchesSubStatus, type SubStatusValue } from "@/components/dashboard/SubStatusFilter";
 import { OrderDetailsPanel } from "@/components/dashboard/OrderDetailsPanel";
 import { ColisMainRowCell } from "@/components/dashboard/ColisMainRowCell";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ const LivreurColis = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+  const [subStatusFilter, setSubStatusFilter] = useState<SubStatusValue>("all");
 
   useEffect(() => {
     supabase.from("orders").select(ORDERS_COLUMNS).order("updated_at", { ascending: false }).limit(500)
@@ -35,9 +37,19 @@ const LivreurColis = () => {
 
   const billingMap = useInvoiceStatusMap(orders.map((o) => o.id), "livreur");
 
+  const filtered = useMemo(() => orders
+    .filter((o) => matchesSubStatus(billingMap[o.id], subStatusFilter))
+    .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()),
+    [orders, billingMap, subStatusFilter]);
+
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Mes colis</h2>
+      <Card className="p-3">
+        <div className="md:max-w-xs">
+          <SubStatusFilter value={subStatusFilter} onChange={setSubStatusFilter} />
+        </div>
+      </Card>
       <Card className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -53,9 +65,9 @@ const LivreurColis = () => {
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Chargement...</TableCell></TableRow>
-            ) : orders.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucun colis assigné</TableCell></TableRow>
-            ) : [...orders].sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()).map((o) => (
+            ) : filtered.map((o) => (
               <Fragment key={o.id}>
               <TableRow>
                 <TableCell><ColisMainRowCell order={o} /></TableCell>

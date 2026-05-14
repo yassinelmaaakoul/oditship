@@ -14,6 +14,7 @@ import { OrderDetailsPanel } from "@/components/dashboard/OrderDetailsPanel";
 import { ColisMainRowCell } from "@/components/dashboard/ColisMainRowCell";
 import { OrderBillingBadges } from "@/components/dashboard/OrderBillingBadges";
 import { useInvoiceStatusMap } from "@/lib/useInvoiceStatusMap";
+import { SubStatusFilter, matchesSubStatus, type SubStatusValue } from "@/components/dashboard/SubStatusFilter";
 import { printSticker, printStickers } from "@/lib/printSticker";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Pencil, Trash2, Printer, Plus, Search, CheckCircle2, PackageCheck, Loader2, X } from "lucide-react";
@@ -55,6 +56,7 @@ const VendeurColis = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [subStatusFilter, setSubStatusFilter] = useState<SubStatusValue>("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -106,10 +108,13 @@ const VendeurColis = () => {
   }, [user, isAgent, colisScope]);
 
 
+  const billingMap = useInvoiceStatusMap(orders.map((o) => o.id));
+
   const filtered = useMemo(() => {
     return orders.filter((o) => {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (agentFilter !== "all" && o.agent_id !== agentFilter) return false;
+      if (!matchesSubStatus(billingMap[o.id], subStatusFilter)) return false;
       if (dateFrom && new Date(o.created_at) < new Date(dateFrom)) return false;
       if (dateTo && new Date(o.created_at) > new Date(dateTo + "T23:59:59")) return false;
       if (search) {
@@ -128,9 +133,7 @@ const VendeurColis = () => {
       const tb = new Date(b.updated_at || b.created_at).getTime();
       return tb - ta;
     });
-  }, [orders, statusFilter, agentFilter, dateFrom, dateTo, search]);
-
-  const billingMap = useInvoiceStatusMap(filtered.map((o) => o.id));
+  }, [orders, statusFilter, agentFilter, subStatusFilter, billingMap, dateFrom, dateTo, search]);
 
   const selectedOrders = useMemo(() => orders.filter((o) => selected.has(o.id)), [orders, selected]);
   const eligibleConfirm = selectedOrders.filter((o) => o.status === "Crée");
@@ -271,7 +274,7 @@ const VendeurColis = () => {
 
       <Card className="p-3 w-full">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
-          <div className="md:col-span-4 relative">
+          <div className="md:col-span-3 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-9" placeholder="Rechercher (nom, téléphone, ville, tracking)" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
@@ -285,6 +288,9 @@ const VendeurColis = () => {
             </Select>
           </div>
           <div className="md:col-span-2">
+            <SubStatusFilter value={subStatusFilter} onChange={setSubStatusFilter} />
+          </div>
+          <div className="md:col-span-2">
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger><SelectValue placeholder="Agent" /></SelectTrigger>
               <SelectContent>
@@ -294,7 +300,7 @@ const VendeurColis = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="md:col-span-4 flex gap-2">
+          <div className="md:col-span-3 flex gap-2">
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </div>
