@@ -14,6 +14,7 @@ import { OrderDetailsPanel } from "@/components/dashboard/OrderDetailsPanel";
 import { ColisMainRowCell } from "@/components/dashboard/ColisMainRowCell";
 import { OrderBillingBadges } from "@/components/dashboard/OrderBillingBadges";
 import { useInvoiceStatusMap } from "@/lib/useInvoiceStatusMap";
+import { SubStatusFilter, matchesSubStatus, type SubStatusValue } from "@/components/dashboard/SubStatusFilter";
 import { printSticker, printStickers } from "@/lib/printSticker";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Pencil, Trash2, Printer, Plus, Search, CheckCircle2, PackageCheck, Loader2, X } from "lucide-react";
