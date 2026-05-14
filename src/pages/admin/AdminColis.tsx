@@ -114,7 +114,7 @@ const AdminColis = () => {
       <h2 className="text-2xl font-bold">Toutes les commandes</h2>
 
       <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
           <div className="relative lg:col-span-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -131,6 +131,7 @@ const AdminColis = () => {
               {ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
+          <SubStatusFilter value={subStatusFilter} onChange={setSubStatusFilter} />
           <Select value={vendeurFilter} onValueChange={setVendeurFilter}>
             <SelectTrigger><SelectValue placeholder="Vendeur" /></SelectTrigger>
             <SelectContent>
