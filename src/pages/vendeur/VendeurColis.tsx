@@ -108,10 +108,13 @@ const VendeurColis = () => {
   }, [user, isAgent, colisScope]);
 
 
+  const billingMap = useInvoiceStatusMap(orders.map((o) => o.id));
+
   const filtered = useMemo(() => {
     return orders.filter((o) => {
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (agentFilter !== "all" && o.agent_id !== agentFilter) return false;
+      if (!matchesSubStatus(billingMap[o.id], subStatusFilter)) return false;
       if (dateFrom && new Date(o.created_at) < new Date(dateFrom)) return false;
       if (dateTo && new Date(o.created_at) > new Date(dateTo + "T23:59:59")) return false;
       if (search) {
@@ -130,9 +133,7 @@ const VendeurColis = () => {
       const tb = new Date(b.updated_at || b.created_at).getTime();
       return tb - ta;
     });
-  }, [orders, statusFilter, agentFilter, dateFrom, dateTo, search]);
-
-  const billingMap = useInvoiceStatusMap(filtered.map((o) => o.id));
+  }, [orders, statusFilter, agentFilter, subStatusFilter, billingMap, dateFrom, dateTo, search]);
 
   const selectedOrders = useMemo(() => orders.filter((o) => selected.has(o.id)), [orders, selected]);
   const eligibleConfirm = selectedOrders.filter((o) => o.status === "Crée");
