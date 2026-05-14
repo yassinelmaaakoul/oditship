@@ -274,7 +274,7 @@ const VendeurColis = () => {
 
       <Card className="p-3 w-full">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
-          <div className="md:col-span-4 relative">
+          <div className="md:col-span-3 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-9" placeholder="Rechercher (nom, téléphone, ville, tracking)" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
@@ -288,6 +288,9 @@ const VendeurColis = () => {
             </Select>
           </div>
           <div className="md:col-span-2">
+            <SubStatusFilter value={subStatusFilter} onChange={setSubStatusFilter} />
+          </div>
+          <div className="md:col-span-2">
             <Select value={agentFilter} onValueChange={setAgentFilter}>
               <SelectTrigger><SelectValue placeholder="Agent" /></SelectTrigger>
               <SelectContent>
@@ -297,7 +300,7 @@ const VendeurColis = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="md:col-span-4 flex gap-2">
+          <div className="md:col-span-3 flex gap-2">
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </div>
